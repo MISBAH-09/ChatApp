@@ -10,12 +10,15 @@ class User(models.Model):  # Existing, adjust if named differently
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-# class Message(models.Model):  # Existing
-#     id = models.IntegerField(primary_key=True)
-#     type = models.CharField(max_length=10)
-#     body = models.TextField()
-#     media_url = models.CharField(max_length=200, null=True, blank=True)
-#     user = models.ForeignKey(User, on_delete=models.CASCADE)  # Assuming user_id maps here
-#     status = models.CharField(max_length=20)
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
+
+class Message(models.Model):
+    id = models.IntegerField(primary_key=True)
+    type = models.CharField(max_length=10)
+    body = models.TextField()
+    media_url = models.CharField(max_length=200, null=True, blank=True)
+    #updating as foreign key
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='messages')
+    status = models.CharField(max_length=20)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
