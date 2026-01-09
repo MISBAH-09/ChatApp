@@ -18,8 +18,8 @@ class Message(models.Model):
     body = models.TextField()
     media_url = models.CharField(max_length=200, null=True, blank=True)
     #updating as foreign key
-    
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='messages')
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages', null=True, blank=True)
     status = models.CharField(max_length=20)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
