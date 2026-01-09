@@ -6,27 +6,8 @@ from ..models import User
 import hashlib
 
 
-class AuthenticationAPI(APIView):
-      
+class signupAPI(APIView):  
   def post(self, request):
-      
-    request_path = request.path
-    
-    # signup request
-    if 'signup' in request_path:
-      return self._handle_signup(request)
-    
-    # login request
-    elif 'login' in request_path:
-      return self._handle_login(request)
-    
-    else:
-      return Response(
-        {'success': False, 'error': 'Invalid endpoint'},
-        status=status.HTTP_400_BAD_REQUEST
-      )
-  
-  def _handle_signup(self, request):
     try:
       username = request.data.get('username')
       email = request.data.get('email')
@@ -83,8 +64,10 @@ class AuthenticationAPI(APIView):
         {'success': False, 'error': str(e)},
         status=status.HTTP_400_BAD_REQUEST
       )
-  
-  def _handle_login(self, request):
+    
+
+class loginAPI(APIView):
+  def post(self, request):
     
     try:
       username = request.data.get('username')
@@ -92,14 +75,12 @@ class AuthenticationAPI(APIView):
 
       if not username or not email:
         return Response(
-          # print ("Missing username or email:"),
           {'success': False, 'error': 'username and email are required'},
           status=status.HTTP_400_BAD_REQUEST
         )
         
       try:
-        user = User.objects.get(username=username)
-        # print("User found:", user.username)  
+        user = User.objects.get(username=username)  
       except User.DoesNotExist:
         return Response(
           {'success': False, 'error': 'Invalid username or email'},
@@ -117,8 +98,8 @@ class AuthenticationAPI(APIView):
       token = hashlib.sha256(raw_string.encode()).hexdigest()
       # print("Generated token:", token)  
       if(token):
-        print("Token generated successfully")
-        self.add_token_intodb(user.id, token)
+        result = self.add_token_intodb(user.id, token)
+        
         return Response(
         {
           'success': True,

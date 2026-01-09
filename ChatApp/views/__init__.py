@@ -1,7 +1,8 @@
 
-from .users import AuthenticationAPI
+from .users import loginAPI, signupAPI
 
 
 __all__ = [
-    'AuthenticationAPI',
+    'loginAPI',
+    'signupAPI',
 ]
