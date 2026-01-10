@@ -16,14 +16,21 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from .views import loginAPI, signupAPI
+from django.conf import settings
+from django.conf.urls.static import static
+from .views import loginAPI, signupAPI, getbyIdApi, updateAPI
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
     path('signup/', signupAPI.as_view(), name='signup'),
     path('login/', loginAPI.as_view(), name='login'),
-    
+    path('get/<int:id>/', getbyIdApi.as_view(), name='get_user'),
+    path('update/<int:id>/', updateAPI.as_view(), name='update_user')
+
 
 
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
