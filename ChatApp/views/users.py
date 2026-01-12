@@ -6,7 +6,6 @@ from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.contrib.auth.hashers import check_password , make_password
-
 from ChatApp import settings
 from ..models import User
 import hashlib
@@ -31,7 +30,6 @@ def save_base64_image(base64_data, filename):
         f.write(img_data)
     return f'profiles/{filename}'
 
-
 class signupAPI(APIView):
   def post(self, request):
     response_data = {
@@ -48,31 +46,38 @@ class signupAPI(APIView):
       last_name = request.data.get('last_name', '')
       password = request.data.get('password')
       profile = request.data.get('profile')
-      
-      # Validate required fields
-      if not username or not password or not email:
-        response_data['message'] = 'username, password, and email are required'
-        return Response(response_data, status=http_status)
-        
-      #username validation
-      if User.objects.filter(username=username).exists():
-        response_data['message'] = 'Username already exists'
-        return Response(response_data, status=http_status)
-      
-      valid_username, message = Validations().isvalidusername(username)
-      if not valid_username:
-        response_data['message'] = message
-        return Response(response_data, status=http_status)
 
-      #email validation
-      result = validate_email(email)
-      if result is not None:
-        response_data['message'] = 'Invalid email format'
-        return Response(response_data, status=http_status)
-      elif User.objects.filter(email=email).exists():
-        response_data['message'] = 'Email already exists'
-        return Response(response_data, status=http_status)
+      errors = []
+
+      # Username validation
+      if not username:
+        errors.append('username is required')
+      else:
+        valid_username, message = Validations().isvalidusername(username)
+        if not valid_username:
+          errors.append(message)
+
+      # Password validation
+      if not password:
+          errors.append('password is required')
+      else:
+        valid_password, message = Validations().isvalidPassword(password)
+        if not valid_password:
+          errors.append(message)
+
+      # Email validation
+      if not email:
+          errors.append('email is required')
+      else:
+        try:
+          validate_email(email) 
+        except:
+          errors.append('Invalid email format')
+      if errors:
+          response_data['message'] = ', '.join(errors)
+          return Response(response_data, status=http_status)
       
+
       #first name and last name validation
       if first_name:
         valid_firstname, message = Validations().isvalidName(first_name)
@@ -84,15 +89,35 @@ class signupAPI(APIView):
         if not valid_lastname:
           response_data['message'] = 'Invalid last name: ' + message
           return Response(response_data, status=http_status)
+        
+      #password validation
+      valid_password, message = Validations().isvalidPassword(password)
+      if not valid_password:
+        response_data['message'] = message
+        return Response(response_data, status=http_status)
       
-      user = User.objects.create(
-        username=username,
-        email=email,
-        first_name=first_name,
-        last_name=last_name,
-        password=make_password(password),
-        profile=profile
-      )
+      try:
+        user = User.objects.create(
+          username=username,
+          email=email,
+          first_name=first_name,
+          last_name=last_name,
+          password=make_password(password),
+          profile=profile
+        )
+      except IntegrityError as e:
+        if '1062' in str(e):
+          if 'username' in str(e):
+            response_data['message'] = 'Username already exists'
+          elif 'email' in str(e):
+            response_data['message'] = 'Email already exists'
+          else:
+            response_data['message'] = 'Duplicate entry detected'
+          return Response(response_data, status=http_status)
+        else:
+          response_data['message'] = str(e)
+          return Response(response_data, status=http_status)
+
       
       response_data['success'] = True
       response_data['message'] = 'User registered successfully'
@@ -250,15 +275,12 @@ class updateAPI(APIView):
       # print("Profile path:", profile_path)  # For debugging purposes
 
     #username validation
-    username = request.data.get('username', user.username)
-    if User.objects.filter(username=username).exclude(id=id).exists():
-      response_data['message'] = 'Username already exists'
-      return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-    
-    valid_username, message = Validations().isvalidusername(username)
-    if not valid_username:
-      response_data['message'] = message
-      return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+    if ('username' in request.data):
+      username = request.data.get('username', user.username)  
+      valid_username, message = Validations().isvalidusername(username)
+      if not valid_username:
+        response_data['message'] = message
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
     
     #email validation
     if 'email' in request.data:
@@ -268,10 +290,6 @@ class updateAPI(APIView):
         email = user_email 
       except ValidationError:
         response_data['message'] = 'Invalid email format'
-        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-
-      if User.objects.filter(email=email).exclude(id=id).exists():
-        response_data['message'] = 'Email already exists'
         return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
     #first name and last name validation
@@ -291,6 +309,11 @@ class updateAPI(APIView):
     #password update
     if ('password' in request.data):  
       password = request.data.get('password')
+      valid_password, message = Validations().isvalidPassword(password)
+      if not valid_password:
+        response_data['message'] = message
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+      
       user.password = make_password(password)
 
     try:
@@ -302,9 +325,18 @@ class updateAPI(APIView):
       user.profile = profile_path
       user.updated_at = timezone.now()
       user.save()
-    except IntegrityError:
-      response_data['message'] = 'Username or Email already exists'
-      return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+    except IntegrityError as e:
+        if '1062' in str(e):
+          if 'username' in str(e):
+            response_data['message'] = 'Username already exists'
+          elif 'email' in str(e):
+            response_data['message'] = 'Email already exists'
+          else:
+            response_data['message'] = 'Duplicate entry detected'
+          return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+        else:
+          response_data['message'] = str(e)
+          return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
     response_data['success'] = True
     response_data['message'] = 'User updated successfully'
@@ -326,24 +358,52 @@ class Validations:
   def isvalidusername(self, username):
     message = ""
 
-    if username[0].isdigit() or username[0] == "_":
-      message = "Username cannot start with a number or underscore"
-      return (False, message)
+    # Check if the first character is a letter
+    if not username[0].isalpha():
+        message =  "Username must start with a letter not with '" + username[0] + "'"
+        return (False, message)
+
+    if not re.fullmatch(r'[A-Za-z0-9._]+', username):
+        return False, "Username can only contain letters, numbers, '.' and '_'"
     
     if "@" in username:
       message = "Username cannot contain '@'"
       return (False, message)
 
-    # if not re.match(r'^[A-Za-z0-9_-]+$', username):
-    #   message = "Username can only contain letters, numbers, underscores, or hyphens"
-    #   return (False, message)
-
     return (True, "Valid username")
-    
-  def isvalidName(name):
-      message = ""
-      if name[0].isdigit() or name[0] == "_":
-        message = "Username cannot start with a number or underscore"
+
+  def isvalidName(self, name):
+    message = ""
+    if not name[0].isalpha():
+        message = "Name must start with a letter"
         return (False, message)
-      
-      return (True, "Valid name")
+
+    if not re.fullmatch(r"[A-Za-z' -]+", name):
+        message = "Name can only contain letters, spaces, hyphens (-), and apostrophes (')"
+        return (False, message)
+    return (True, "Valid name")
+
+
+  def isvalidPassword(self, password):
+    message = ""
+    if len(password) < 8:
+      message = "Password must be at least 8 characters long"
+      return (False, message)
+    
+    if not re.search(r'[A-Z]', password):
+      message = "Password must contain at least one uppercase letter"
+      return (False, message)
+    
+    if not re.search(r'[a-z]', password):
+      message = "Password must contain at least one lowercase letter"
+      return (False, message)
+    
+    if not re.search(r'[0-9]', password):
+      message = "Password must contain at least one digit"
+      return (False, message)
+    
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+      message = "Password must contain at least one special character"
+      return (False, message)
+
+    return (True, "Valid password")
