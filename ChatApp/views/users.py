@@ -8,6 +8,7 @@ from django.db import IntegrityError
 from django.contrib.auth.hashers import check_password , make_password
 from ChatApp import settings
 from ..models import User
+from ChatApp.middleware.auth import require_token
 import hashlib
 import base64
 import os
@@ -214,6 +215,7 @@ class loginAPI(APIView):
 
 
 class getbyIdApi(APIView):
+  @require_token
   def get(self, request, id=None):
     response_data = {
       'success': True,
@@ -222,27 +224,21 @@ class getbyIdApi(APIView):
     }
     http_status = status.HTTP_400_BAD_REQUEST
     try:
-      if id:
-        try:
-          user = User.objects.get(id=id)
-          response_data['success'] = True
-          response_data['message'] = 'User fetched successfully'
-          response_data['data']= {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'profile': user.profile,
-            'token': user.token,
-            'created_at': user.created_at.isoformat(),
-            'updated_at': user.updated_at.isoformat()
-          }
-          return Response(response_data, status=status.HTTP_200_OK)
-        except User.DoesNotExist:
-          response_data['success'] = False
-          response_data['message'] = 'User not found'
-          return Response(response_data, status=status.HTTP_404_NOT_FOUND)
+      user = request.auth_user
+      response_data['success'] = True
+      response_data['message'] = 'User fetched successfully'
+      response_data['data']= {
+        'id': user.id,
+        'username': user.username,
+        'email': user.email,
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+        'profile': user.profile,
+        'token': user.token,
+        'created_at': user.created_at.isoformat(),
+        'updated_at': user.updated_at.isoformat()
+      }
+      return Response(response_data, status=status.HTTP_200_OK)
     except Exception as e:
       return Response(
         {'success': False, 'error': str(e)},
@@ -251,11 +247,12 @@ class getbyIdApi(APIView):
     
 
 class updateAPI(APIView):
+  # @require_token
   def put(self, request, id=None):
     response_data = {
-    'success': False,
-    'message': '',
-    'data': None
+      'success': False,
+      'message': '',
+      'data': None
     }
 
     try:
@@ -264,7 +261,14 @@ class updateAPI(APIView):
       response_data['message'] = 'User not found'
       return Response(response_data, status=status.HTTP_404_NOT_FOUND)
 
+    username = request.data.get('username', user.username)
+    email = request.data.get('email', user.email)
+    first_name = request.data.get('first_name', user.first_name)
+    last_name = request.data.get('last_name', user.last_name)
+    password = request.data.get('password', None)
     profile_path = user.profile
+
+    # Handle profile image if provided
     if 'profile' in request.data:
       profile_data = request.data.get('profile')
       b64_string = profile_data 
@@ -274,70 +278,69 @@ class updateAPI(APIView):
       profile_path = save_base64_image(b64_string, filename)
       # print("Profile path:", profile_path)  # For debugging purposes
 
-    #username validation
-    if ('username' in request.data):
-      username = request.data.get('username', user.username)  
+    # Username validation
+    if 'username' in request.data:
       valid_username, message = Validations().isvalidusername(username)
       if not valid_username:
         response_data['message'] = message
         return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-    
-    #email validation
+
+    # Email validation
     if 'email' in request.data:
-      user_email = request.data.get('email', user.email)
       try:
-        validate_email(user_email)
-        email = user_email 
+        validate_email(email)
       except ValidationError:
         response_data['message'] = 'Invalid email format'
         return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
-    #first name and last name validation
+    # First name validation
     if 'first_name' in request.data:
-      first_name = request.data.get('first_name', user.first_name)
       valid_firstname, message = Validations().isvalidName(first_name)
       if not valid_firstname:
         response_data['message'] = 'Invalid first name: ' + message
         return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+
+    # Last name validation
     if 'last_name' in request.data:
-      last_name = request.data.get('last_name', user.last_name)
       valid_lastname, message = Validations().isvalidName(last_name)
       if not valid_lastname:
         response_data['message'] = 'Invalid last name: ' + message
         return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-      
-    #password update
-    if ('password' in request.data):  
-      password = request.data.get('password')
+
+    # Password validation & hashing
+    if password:
       valid_password, message = Validations().isvalidPassword(password)
       if not valid_password:
         response_data['message'] = message
         return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-      
-      user.password = make_password(password)
+      password = make_password(password)
+    else:
+      password = user.password  # keep old password if not updating
 
+    # Save updates safely
     try:
       user.username = username
       user.email = email
-      user.first_name = request.data.get('first_name', user.first_name)
-      user.last_name = request.data.get('last_name', user.last_name)
-      user.password = user.password
+      user.first_name = first_name
+      user.last_name = last_name
+      user.password = password
       user.profile = profile_path
       user.updated_at = timezone.now()
       user.save()
     except IntegrityError as e:
-        if '1062' in str(e):
-          if 'username' in str(e):
-            response_data['message'] = 'Username already exists'
-          elif 'email' in str(e):
-            response_data['message'] = 'Email already exists'
-          else:
-            response_data['message'] = 'Duplicate entry detected'
-          return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+      if '1062' in str(e):
+        if 'username' in str(e):
+          response_data['message'] = 'Username already exists'
+        elif 'email' in str(e):
+          response_data['message'] = 'Email already exists'
         else:
-          response_data['message'] = str(e)
-          return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+          response_data['message'] = 'Duplicate entry detected'
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+      else:
+        response_data['message'] = str(e)
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
+    # Return updated user data
     response_data['success'] = True
     response_data['message'] = 'User updated successfully'
     response_data['data'] = {
@@ -352,7 +355,6 @@ class updateAPI(APIView):
     }
 
     return Response(response_data, status=status.HTTP_200_OK)
-
 
 class Validations:
   def isvalidusername(self, username):
