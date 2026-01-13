@@ -26,7 +26,7 @@ urlpatterns = [
     path('signup/', signupAPI.as_view(), name='signup'),
     path('login/', loginAPI.as_view(), name='login'),
     path('get/', getbyIdApi.as_view(), name='get_user'),
-    path('update/<int:id>/', updateAPI.as_view(), name='update_user')
+    path('update/', updateAPI.as_view(), name='update_user')
 
 
 

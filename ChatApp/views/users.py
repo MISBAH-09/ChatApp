@@ -247,7 +247,7 @@ class getbyIdApi(APIView):
     
 
 class updateAPI(APIView):
-  # @require_token
+  @require_token
   def put(self, request, id=None):
     response_data = {
       'success': False,
@@ -255,11 +255,14 @@ class updateAPI(APIView):
       'data': None
     }
 
-    try:
-      user = User.objects.get(id=id)
-    except User.DoesNotExist:
-      response_data['message'] = 'User not found'
-      return Response(response_data, status=status.HTTP_404_NOT_FOUND)
+    # safely get authenticated user (middleware may set `auth_user` or leave it None)
+    user = getattr(request, 'auth_user', None)
+    print("Authenticated user:", user)  # For debugging purposes
+    if not user:
+      return Response(
+        {'success': False, 'message': 'Unauthorized'},
+        status=status.HTTP_401_UNAUTHORIZED
+      )
 
     username = request.data.get('username', user.username)
     email = request.data.get('email', user.email)
