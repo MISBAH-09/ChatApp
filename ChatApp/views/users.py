@@ -254,8 +254,6 @@ class updateAPI(APIView):
       'message': '',
       'data': None
     }
-
-    # safely get authenticated user (middleware may set `auth_user` or leave it None)
     user = getattr(request, 'auth_user', None)
     print("Authenticated user:", user)  # For debugging purposes
     if not user:

@@ -10,6 +10,6 @@ class UserAdmin(admin.ModelAdmin):
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin): 
-    list_display = ('id', 'type', 'body', 'media_url', 'sender', 'receiver', 'status', 'created_at', 'updated_at')
+    list_display = ('id', 'type', 'body', 'media_url', 'status', 'created_at', 'updated_at')
     search_fields = ('body', 'status')
     list_filter = ('type', 'status', 'created_at', 'updated_at')
