@@ -1,10 +1,11 @@
 
-from .users import loginAPI, signupAPI,getbyIdApi,updateAPI
+from .users import loginAPI, signupAPI,getbyIdApi,updateAPI,fetchallusersAPI
 
 
 __all__ = [
     'loginAPI',
     'signupAPI',
     'getbyIdApi',
-    'updateAPI'
+    'updateAPI',
+    'fetchallusersAPI',
 ]

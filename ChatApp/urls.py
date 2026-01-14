@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from .views import loginAPI, signupAPI, getbyIdApi, updateAPI
+from .views import loginAPI, signupAPI, getbyIdApi, updateAPI, fetchallusersAPI
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -26,7 +26,8 @@ urlpatterns = [
     path('signup/', signupAPI.as_view(), name='signup'),
     path('login/', loginAPI.as_view(), name='login'),
     path('get/', getbyIdApi.as_view(), name='get_user'),
-    path('update/', updateAPI.as_view(), name='update_user')
+    path('update/', updateAPI.as_view(), name='update_user'),
+    path('fetchallusers/',fetchallusersAPI.as_view())
 
 
 

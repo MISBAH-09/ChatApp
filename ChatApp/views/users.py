@@ -357,6 +357,46 @@ class updateAPI(APIView):
 
     return Response(response_data, status=status.HTTP_200_OK)
 
+
+class fetchallusersAPI(APIView):
+  @require_token
+  def get(self, request, id=None):
+    response_data = {
+      'success': True,
+      'message': '',
+      'data': None
+    }
+    http_status = status.HTTP_400_BAD_REQUEST
+    try:
+      user = request.auth_user
+      print('user', user)
+
+      users=User.objects.exclude(id=user.id)
+      print(users)
+
+      users_list=[]
+
+      for user in users:
+        users_list.append({
+          'id' : user.id,
+          'username': user.username,
+          'first_name' : user.first_name,
+          'last_name' : user.last_name,
+          'profile' : user.profile
+        })
+
+      response_data['success']=True
+      response_data ['message'] = "All users"
+      response_data ['data'] = users_list
+
+      return Response(response_data, status=status.HTTP_200_OK)
+    except Exception as e:
+      return Response(
+        {'success': False, 'error': str(e)},
+        status=status.HTTP_400_BAD_REQUEST
+      )
+  
+
 class Validations:
   def isvalidusername(self, username):
     message = ""
