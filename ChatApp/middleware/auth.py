@@ -17,7 +17,14 @@ class AuthenticationMiddleware(MiddlewareMixin):
     if any(request.path.startswith(url) for url in self.EXEMPT_URLS):
       return None
 
+    # In AuthenticationMiddleware
     auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+
+    if auth_header.startswith('Bearer '):
+        # This removes 'Bearer ' (7 characters) from the start
+        token = auth_header[7:].strip()
+    else:
+        token = auth_header.strip()
 
     token = auth_header.strip()
 

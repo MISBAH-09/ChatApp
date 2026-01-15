@@ -255,13 +255,13 @@ class updateAPI(APIView):
       'data': None
     }
     user = getattr(request, 'auth_user', None)
-    print("Authenticated user:", user)  # For debugging purposes
+    # print("Authenticated user:", user)  # For debugging purposes
     if not user:
       return Response(
         {'success': False, 'message': 'Unauthorized'},
         status=status.HTTP_401_UNAUTHORIZED
       )
-
+    id =user.id
     username = request.data.get('username', user.username)
     email = request.data.get('email', user.email)
     first_name = request.data.get('first_name', user.first_name)
@@ -369,10 +369,11 @@ class fetchallusersAPI(APIView):
     http_status = status.HTTP_400_BAD_REQUEST
     try:
       user = request.auth_user
-      print('user', user)
+      # print('user', user)
+      # print('user', user)
 
       users=User.objects.exclude(id=user.id)
-      print(users)
+      # print(users)
 
       users_list=[]
 
