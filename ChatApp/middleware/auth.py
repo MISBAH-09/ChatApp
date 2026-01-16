@@ -8,50 +8,44 @@ from functools import wraps
 class AuthenticationMiddleware(MiddlewareMixin):
 
   EXEMPT_URLS = [
-      '/signup',
-      '/login',
-      '/admin',
+    '/signup',
+    '/login',
+    '/admin',
   ]
   
   def process_request(self, request):
+    # Skip exempt URLs
     if any(request.path.startswith(url) for url in self.EXEMPT_URLS):
       return None
 
-    # In AuthenticationMiddleware
+    # Get Authorization header
     auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+    token = None
 
     if auth_header.startswith('Bearer '):
-        # This removes 'Bearer ' (7 characters) from the start
-        token = auth_header[7:].strip()
-    else:
-        token = auth_header.strip()
+      token = auth_header[7:].strip()
+    elif auth_header:
+      token = auth_header.strip()
 
-    token = auth_header.strip()
-
-    request.auth_user = None 
+    request.auth_user = None
 
     if token:
       try:
-        user = User.objects.get(token=token)
-
-        if user.id is not None:
+          user = User.objects.get(token=token)
           request.auth_user = user
-
       except User.DoesNotExist:
-        pass
+          pass
 
     return None
+
 
 def require_token(view_func):
   @wraps(view_func)
   def wrapper(self, request, *args, **kwargs):
-
-    if not hasattr(request, 'auth_user') or not request.auth_user:
+    if not getattr(request, 'auth_user', None):
       return Response(
         {'success': False, 'message': 'Unauthorized', 'data': None},
         status=status.HTTP_401_UNAUTHORIZED
       )
-
     return view_func(self, request, *args, **kwargs)
-
   return wrapper

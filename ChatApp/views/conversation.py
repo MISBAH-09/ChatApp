@@ -6,11 +6,9 @@ from django.db import IntegrityError
 from ChatApp import settings
 from ..models import User , Conversations ,Conversations_Users
 from ChatApp.middleware.auth import require_token
-import hashlib
-import base64
-import os
-import re
 from django.core.files import File
+
+from django.db import transaction
 
 class getConversationAPI(APIView):
   @require_token
@@ -19,44 +17,55 @@ class getConversationAPI(APIView):
       user = request.auth_user
       my_id = user.id
 
-      user_ids = request.data.get('user_ids')
-      title =request.data.get('title')
+      other_user_id = request.data.get('user_id')
+      title = request.data.get('title', 'New Chat')
+      # print("amhereeee at backend", other_user_id)
 
-      if not user_ids:
-        return Response(
-          {'success': False, 'message': 'At least select one person to start conversation'},
-          status=status.HTTP_400_BAD_REQUEST
-        )
-      
-      try:
-        conversation =Conversations.objects.create(
-        title=title,
-        
-        )
-        conversation_id =conversation.id
-        for user in user_ids:
-          conversations_users=Conversations_Users.objects.create(
-            conversation_id = conversation_id,
-            user_id = user
+      if not other_user_id:
+          return Response(
+              {'success': False, 'message': 'user_id is required'},
+              status=status.HTTP_400_BAD_REQUEST
           )
-      except IntegrityError as e:
-        pass
 
-      
+      # does common conversation
+      common_conversation = Conversations_Users.objects.filter(
+          user_id=my_id,
+          conversation_id__in=Conversations_Users.objects.filter(
+              user_id=other_user_id
+          ).values_list('conversation_id', flat=True)
+      ).values_list('conversation_id', flat=True).first()
 
+      # if yes 
+      if common_conversation:
+        return Response({
+          'success': True,
+          'message': 'Conversation already exists',
+          'data': {
+              'conversation_id': common_conversation
+          }
+        }, status=status.HTTP_200_OK)
 
+      # new
+      # with transaction.atomic():
+      conversation = Conversations.objects.create(title=title)
 
+      Conversations_Users.objects.create(
+        conversation_id=conversation,
+        user_id=user
+      )
 
-      response_data = {
+      Conversations_Users.objects.create(
+        conversation_id=conversation,
+        user_id=User.objects.get(id=other_user_id)
+      )
+
+      return Response({
         'success': True,
-        'message': 'User IDs received',
+        'message': 'New conversation created',
         'data': {
-          'my_id': my_id,
-          'user_ids': user_ids
+            'conversation_id': conversation.id
         }
-      }
-
-      return Response(response_data, status=status.HTTP_200_OK)
+      }, status=status.HTTP_201_CREATED)
 
     except Exception as e:
       return Response(
