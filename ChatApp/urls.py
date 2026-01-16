@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from .views import loginAPI, signupAPI, getbyIdApi, updateAPI, fetchallusersAPI,getConversationAPI
+from .views import loginAPI, signupAPI, getbyIdApi, updateAPI, fetchallusersAPI,getConversationAPI, getAllConversationsAPI
 urlpatterns = [
     path('admin/', admin.site.urls),
 
@@ -27,7 +27,8 @@ urlpatterns = [
     path('get/', getbyIdApi.as_view(), name='get_user'),
     path('update/', updateAPI.as_view(), name='update_user'),
     path('fetchallusers/',fetchallusersAPI.as_view()),
-    path('getConversation/', getConversationAPI.as_view())
+    path('getConversation/', getConversationAPI.as_view()),
+    path('getAllConversations/',getAllConversationsAPI.as_view())
 
 
 

@@ -1,6 +1,6 @@
 
 from .users import loginAPI, signupAPI,getbyIdApi,updateAPI,fetchallusersAPI
-from .conversation import getConversationAPI
+from .conversation import getConversationAPI ,getAllConversationsAPI
 
 
 __all__ = [
@@ -9,5 +9,6 @@ __all__ = [
     'getbyIdApi',
     'updateAPI',
     'fetchallusersAPI',
-    'getConversationAPI'
+    'getConversationAPI',
+    'getAllConversationsAPI'
 ]

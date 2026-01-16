@@ -36,11 +36,6 @@ class Message(models.Model):
 class Conversations_Users(models.Model):
     id = models.AutoField(primary_key=True)
     conversation_id= models.ForeignKey("Conversations" , on_delete=models.CASCADE)
-    user_id =models.ForeignKey(User, on_delete=models.CASCADE)
+    user_ids = models.TextField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=['conversation_id', 'user_id'], name='unique_user_in_conversation')
-        ]
