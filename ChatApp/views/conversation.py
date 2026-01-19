@@ -81,50 +81,50 @@ class getConversationAPI(APIView):
       )
 
 class getAllConversationsAPI(APIView):
-    @require_token
-    def get(self, request):
-        try:
-            user = request.auth_user
-            my_id = str(user.id)
+  @require_token
+  def get(self, request):
+    try:
+      user = request.auth_user
+      my_id = str(user.id)
 
-            # Fetch all conversations containing my_id anywhere
-            conversations = Conversations_Users.objects.filter(
-                user_ids__icontains=my_id
-            )
+      # Fetch all conversations containing my_id anywhere
+      conversations = Conversations_Users.objects.filter(
+          user_ids__icontains=my_id
+      )
 
-            data = []
-            for cu in conversations:
+      data = []
+      for cu in conversations:
 
-                user_ids_list = [uid.strip() for uid in cu.user_ids.split(",") if uid.strip()]
+        user_ids_list = [uid.strip() for uid in cu.user_ids.split(",") if uid.strip()]
 
-                other_user_ids = [uid for uid in user_ids_list if uid != my_id]
+        other_user_ids = [uid for uid in user_ids_list if uid != my_id]
 
-                other_user_id = int(other_user_ids[0])
-                other_user_data = User.objects.get(id=other_user_id)
+        other_user_id = int(other_user_ids[0])
+        other_user_data = User.objects.get(id=other_user_id)
 
-                # Append conversation data
-                data.append({
-                    'conversation_user_ids': cu.user_ids,
-                    'conversation_id': cu.conversation_id.id,
-                    # 'title': cu.title,
-                    'created_at': cu.created_at,
-                    'updated_at': cu.updated_at,
-                    'user_id': other_user_data.id,
-                    'username': other_user_data.username,
-                    'profile': other_user_data.profile,
-                    'first_name': other_user_data.first_name,
-                    'last_name': other_user_data.last_name     
-                })
+        # Append conversation data
+        data.append({
+          'conversation_user_ids': cu.user_ids,
+          'conversation_id': cu.conversation_id.id,
+          # 'title': cu.title,
+          'created_at': cu.created_at,
+          'updated_at': cu.updated_at,
+          'user_id': other_user_data.id,
+          'username': other_user_data.username,
+          'profile': other_user_data.profile,
+          'first_name': other_user_data.first_name,
+          'last_name': other_user_data.last_name     
+        })
 
-            return Response({
-                'success': True,
-                'message': 'Conversations fetched',
-                'data': data
-            }, status=status.HTTP_200_OK)
+      return Response({
+        'success': True,
+        'message': 'Conversations fetched',
+        'data': data
+      }, status=status.HTTP_200_OK)
 
-        except Exception as e:
-            return Response(
-                {'success': False, 'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+    except Exception as e:
+      return Response(
+        {'success': False, 'error': str(e)},
+        status=status.HTTP_400_BAD_REQUEST
+      )
 
