@@ -248,7 +248,7 @@ class getbyIdApi(APIView):
 
 class updateAPI(APIView):
   @require_token
-  def put(self, request, id=None):
+  def put(self, request):
     response_data = {
       'success': False,
       'message': '',
@@ -273,7 +273,7 @@ class updateAPI(APIView):
     if 'profile' in request.data:
       profile_data = request.data.get('profile')
       b64_string = profile_data 
-      filename = f"user_{id}_profile.jpg"
+      filename = f"user_{user.id}_profile.jpg"
       img_data = base64.b64decode(b64_string)
       # print("Decoded image data:", img_data)  # For debugging purposes
       profile_path = save_base64_image(b64_string, filename)
