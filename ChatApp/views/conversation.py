@@ -2,8 +2,12 @@ from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from ..models import User, Conversations, Conversations_Users
+from ..models import User, Conversations, Conversations_Users ,Message
 from ..middleware.auth import require_token
+import datetime
+from django.utils import timezone
+
+max_dt = timezone.make_aware(datetime.datetime.max)
 
 class getConversationAPI(APIView):
   @require_token
@@ -21,7 +25,7 @@ class getConversationAPI(APIView):
         )
 
       other_user_data = User.objects.get(id=other_user_id)
-      # print("fghjd",other_user_data.username)
+
 
       # Wrap IDs with commas 
       search_my_id = f"{my_id},"
@@ -79,52 +83,88 @@ class getConversationAPI(APIView):
           {'success': False, 'error': str(e)},
           status=status.HTTP_400_BAD_REQUEST
       )
-
+    
 class getAllConversationsAPI(APIView):
-  @require_token
-  def get(self, request):
-    try:
-      user = request.auth_user
-      my_id = str(user.id)
+    @require_token
+    def get(self, request):
+        try:
+            user = request.auth_user
+            if not user:
+                return Response({'success': False, 'error': 'User not authenticated'}, status=400)
 
-      # Fetch all conversations containing my_id anywhere
-      conversations = Conversations_Users.objects.filter(
-          user_ids__icontains=my_id
-      )
+            my_id = str(user.id)
 
-      data = []
-      for cu in conversations:
+            # Fetch all conversations containing my_id
+            conversations = Conversations_Users.objects.filter(user_ids__icontains=my_id)
 
-        user_ids_list = [uid.strip() for uid in cu.user_ids.split(",") if uid.strip()]
+            data = []
+            for cu in conversations:
+                if not cu.conversation_id:
+                    continue  # skip if conversation is None
 
-        other_user_ids = [uid for uid in user_ids_list if uid != my_id]
+                # Split user_ids and get other users
+                user_ids_list = [uid.strip() for uid in cu.user_ids.split(",") if uid.strip()]
+                other_user_ids = [uid for uid in user_ids_list if uid != my_id]
 
-        other_user_id = int(other_user_ids[0])
-        other_user_data = User.objects.get(id=other_user_id)
+                other_user_data = None
+                if other_user_ids:
+                    try:
+                        other_user_id = int(other_user_ids[0])
+                        other_user_data = User.objects.get(id=other_user_id)
+                    except (User.DoesNotExist, ValueError):
+                        other_user_data = None
 
-        # Append conversation data
-        data.append({
-          'conversation_user_ids': cu.user_ids,
-          'conversation_id': cu.conversation_id.id,
-          # 'title': cu.title,
-          'created_at': cu.created_at,
-          'updated_at': cu.updated_at,
-          'user_id': other_user_data.id,
-          'username': other_user_data.username,
-          'profile': other_user_data.profile,
-          'first_name': other_user_data.first_name,
-          'last_name': other_user_data.last_name     
-        })
+                # Get the latest message in this conversation
+                latest_message = (
+                    Message.objects.filter(conversation_id=cu.conversation_id.id)
+                    .order_by('-created_at')
+                    .first()
+                )
 
-      return Response({
-        'success': True,
-        'message': 'Conversations fetched',
-        'data': data
-      }, status=status.HTTP_200_OK)
+                # Determine what to show for message
+                message = None
+                latest_message_time = None
+                if latest_message:
+                    latest_message_time = latest_message.created_at
+                    if latest_message.type == 'audio':
+                        message = 'audio..'
+                    elif latest_message.type == 'image':
+                        message = 'image..'
+                    elif latest_message.type == 'text':
+                        message = latest_message.body
 
-    except Exception as e:
-      return Response(
-        {'success': False, 'error': str(e)},
-        status=status.HTTP_400_BAD_REQUEST
-      )
+                # Append conversation safely
+                data.append({
+                    'conversation_user_ids': cu.user_ids,
+                    'conversation_id': cu.conversation_id.id,
+                    'created_at': cu.created_at,
+                    'updated_at': cu.updated_at,
+                    'latest_message_id': latest_message.id if latest_message else None,
+                    'latest_message_body': message,
+                    'latest_message_time': latest_message_time,
+                    'user_id': other_user_data.id if other_user_data else None,
+                    'username': other_user_data.username if other_user_data else None,
+                    'profile': other_user_data.profile if other_user_data else None,
+                    'first_name': other_user_data.first_name if other_user_data else None,
+                    'last_name': other_user_data.last_name if other_user_data else None
+                })
 
+            # Sort the data by latest_message_time ascending (None values go last)
+            data_sorted = sorted(
+                data,
+                key=lambda x: x['latest_message_time'] or max_dt,
+                reverse=True
+            )
+            return Response({
+                'success': True,
+                'message': 'Conversations fetched',
+                'data': data_sorted
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )

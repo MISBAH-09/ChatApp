@@ -14,6 +14,54 @@ import base64
 import os
 import re
 from django.core.files import File
+from ChatApp.EmailEnqueue import EmailEnqueue
+import os
+
+class addbyemailAPI(APIView):
+  def post(self, request):
+    response_data = {'success': False, 'message': '', 'data': None}
+    
+    # Setup
+    os.environ['EMAIL_QUEUE_PATH'] = 'D:/Internship/ChatApp/ChatApp/email_queue.pkl'
+    email = request.data.get('email')
+    password = request.data.get('password', 'Pakistan123@')
+    
+    # 1. EMAIL VALIDATION (No try needed)
+    if not email:
+        response_data['message'] = 'Email is required'
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+    
+    # 2. DATABASE + QUEUE 
+    try:
+        # Create user
+        user = User.objects.create(
+            email=email,
+            password=make_password(password),
+        )
+        print(f"User created: {email}")
+        
+        # Queue 
+        enqueue_instance = EmailEnqueue()
+        enqueue_instance.email_enqueue(email, password)
+        print(f"Email queued for {email}")
+        
+    except IntegrityError as e:
+        if '1062' in str(e):
+            response_data['message'] = 'Email already exists'
+            return Response(str(e), status=status.HTTP_409_CONFLICT)
+        response_data['message'] = 'Database error'
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+    
+    except Exception as e:
+        response_data['message'] = 'Registration failed'
+        return Response(e, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    # SUCCESS 
+    response_data['success'] = True
+    response_data['data'] = {'email': user.email}
+    response_data['message'] = 'User registered successfully'
+    return Response(response_data, status=status.HTTP_201_CREATED)
+
 
 def save_base64_image(base64_data, filename):
    
@@ -369,9 +417,7 @@ class fetchallusersAPI(APIView):
     http_status = status.HTTP_400_BAD_REQUEST
     try:
       user = request.auth_user
-      print('user', user)
-      print('user', user)
-
+      
       users=User.objects.exclude(id=user.id)
       # print(users)
 
@@ -383,7 +429,8 @@ class fetchallusersAPI(APIView):
           'username': user.username,
           'first_name' : user.first_name,
           'last_name' : user.last_name,
-          'profile' : user.profile
+          'profile' : user.profile,
+          'email' :user.email,
         })
 
       response_data['success']=True
@@ -397,6 +444,7 @@ class fetchallusersAPI(APIView):
         status=status.HTTP_400_BAD_REQUEST
       )
   
+
 
 class Validations:
   def isvalidusername(self, username):

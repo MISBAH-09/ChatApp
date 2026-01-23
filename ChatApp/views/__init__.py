@@ -1,7 +1,7 @@
 
-from .users import loginAPI, signupAPI,getbyIdApi,updateAPI,fetchallusersAPI
+from .users import loginAPI, signupAPI,getbyIdApi,updateAPI,fetchallusersAPI ,addbyemailAPI
 from .conversation import getConversationAPI ,getAllConversationsAPI
-from .message import sendMessageAPI , getConversationMessages
+from .message import sendMessageAPI , getConversationMessages, deleteMessageAPI , UpdateMessageAPI
 
 
 __all__ = [
@@ -10,8 +10,11 @@ __all__ = [
     'getbyIdApi',
     'updateAPI',
     'fetchallusersAPI',
+    'addbyemailAPI',
     'getConversationAPI',
     'getAllConversationsAPI',
     'sendMessageAPI',
-    'getConversationMessages'
+    'getConversationMessages',
+    'deleteMessageAPI',
+    'UpdateMessageAPI'
 ]
