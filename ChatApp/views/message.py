@@ -39,70 +39,178 @@ def save_base64_audio(base64_data, filename):
 
 
 class sendMessageAPI(APIView):
-    @require_token
-    def post(self, request):
-        try:
-            user = request.auth_user
-            conversation_id = request.data.get('conversation_id')
-            msg_type = request.data.get('type', "").lower()
-            body = request.data.get('body', "")
-            message_status = request.data.get('status', "active")
-            base64_media = request.data.get('media')
+	@require_token
+	def post(self, request):
+		try:
+			user = request.auth_user
+			conversation_id = request.data.get('conversation_id')
+			msg_type = request.data.get('type', "").lower()
+			body = request.data.get('body', "")
+			message_status = request.data.get('status', "active")
+			base64_media = request.data.get('media')
 
-            if not conversation_id:
-                return Response(
-                    {'success': False, 'error': 'conversation_id is required'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+			if not conversation_id:
+				return Response(
+					{'success': False, 'error': 'conversation_id is required'},
+					status=status.HTTP_400_BAD_REQUEST
+				)
 
-            conversation = Conversations.objects.get(id=conversation_id)
+			conversation = Conversations.objects.get(id=conversation_id)
 
-            # Create message first
-            message = Message.objects.create(
-                type=msg_type,
-                body=body,
-                status=message_status,
-                sender_id=user,
-                conversation_id=conversation
-            )
+			# Create message first
+			message = Message.objects.create(
+				type=msg_type,
+				body=body,
+				status=message_status,
+				sender_id=user,
+				conversation_id=conversation
+			)
 
-            # Handle media
-            if msg_type == "image" and base64_media:
-                filename = f"user_{message.id}.jpg"
-                image_path = save_base64_image(base64_media, filename)
-                message.media_url = image_path
-                message.save()
+			# Handle media
+			if msg_type == "image" and base64_media:
+				filename = f"user_{message.id}.jpg"
+				image_path = save_base64_image(base64_media, filename)
+				message.media_url = image_path
+				message.save()
 
-            elif msg_type == "audio" and base64_media:
-                filename = f"user_{message.id}.webm"
-                audio_path = save_base64_audio(base64_media, filename)
-                message.media_url = audio_path
-                message.save()
+			elif msg_type == "audio" and base64_media:
+				filename = f"user_{message.id}.webm"
+				audio_path = save_base64_audio(base64_media, filename)
+				message.media_url = audio_path
+				message.save()
 
-            return Response({
-                'success': True,
-                'message': 'Message sent successfully',
-                'data': {
-                    'id': message.id,
-                    'type': message.type,
-                    'body': message.body,
-                    'media_url': message.media_url,
-                    'sender_id': user.id,
-                    'conversation_id': conversation.id,
-                    'created_at': message.created_at
-                }
-            }, status=status.HTTP_201_CREATED)
+			return Response({
+				'success': True,
+				'message': 'Message sent successfully',
+				'data': {
+					'id': message.id,
+					'type': message.type,
+					'body': message.body,
+					'media_url': message.media_url,
+					'sender_id': user.id,
+					'conversation_id': conversation.id,
+					'created_at': message.created_at
+				}
+			}, status=status.HTTP_201_CREATED)
 
-        except Conversations.DoesNotExist:
-            return Response(
-                {'success': False, 'error': 'Conversation not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        except Exception as e:
-            return Response(
-                {'success': False, 'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+		except Conversations.DoesNotExist:
+			return Response(
+				{'success': False, 'error': 'Conversation not found'},
+				status=status.HTTP_404_NOT_FOUND
+			)
+		except Exception as e:
+			return Response(
+				{'success': False, 'error': str(e)},
+				status=status.HTTP_400_BAD_REQUEST
+			)
+
+class deleteMessageAPI(APIView):
+	@require_token
+	def post(self, request):
+		try:
+			user = request.auth_user  # Authenticated user
+			message_id = request.data.get('message_id')
+
+			if not message_id:
+				return Response(
+					{'success': False, 'error': 'message_id is required'},
+					status=status.HTTP_400_BAD_REQUEST
+				)
+			message = Message.objects.get(id=message_id)
+
+			#  authenticated user
+			if message.sender_id != user:
+				return Response(
+					{ 'success': False,'error': 'Sender not authorized',},
+					status=status.HTTP_403_FORBIDDEN
+				)
+
+			# already deleted
+			if message.status == 'delete':
+				return Response(
+					{'success': False, 'error': 'Message already deleted'},
+					status=status.HTTP_400_BAD_REQUEST
+				)
+
+			Message.objects.filter(id=message_id, sender_id=user).update(status='delete')
+			
+			return Response({
+				'success': True,
+				'message': 'Message deleted successfully',
+				'data': {
+					'id': message.id,
+					'type': message.type,
+					'body': message.body,
+					'status': message.status,
+					'media_url': message.media_url,
+					'sender_id': message.sender_id.id,
+				}
+			}, status=status.HTTP_200_OK)
+
+		except Message.DoesNotExist:
+			return Response(
+				{'success': False, 'error': 'Message not found'},
+				status=status.HTTP_404_NOT_FOUND
+			)
+		except Exception as e:
+			return Response(
+				{'success': False, 'error': str(e)},
+				status=status.HTTP_400_BAD_REQUEST
+			)
+
+class UpdateMessageAPI(APIView):
+	@require_token
+	def put(self, request):
+		response_data = {
+			'success': False,
+			'message': '',
+			'data': None
+		}
+
+		user = request.auth_user
+		message_id = request.data.get('message_id')
+		message_body = request.data.get('message_body')
+
+		# Validate input
+		if not message_id or message_body is None:
+			response_data['message'] = "message_id and message_body are required."
+			return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+
+		try:
+			message = Message.objects.get(id=message_id)
+
+			#  user is the sender
+			if message.sender_id != user:
+				response_data['message'] = "You are not allowed to update this message."
+				return Response(response_data, status=status.HTTP_403_FORBIDDEN)
+
+			# Check if the message is already deleted
+			if message.status == 'delete':
+				response_data['message'] = "Deleted messages cannot be updated."
+				return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+
+			# Update the message body
+			message.body = message_body
+			message.save()
+
+			response_data['success'] = True
+			response_data['message'] = "Message updated successfully"
+			response_data['data'] = {
+				'id': message.id,
+				'body': message.body,
+				'status': message.status,
+				'updated_at': message.updated_at.isoformat() if hasattr(message, 'updated_at') else None,
+			}
+
+			return Response(response_data, status=status.HTTP_200_OK)
+
+		except Message.DoesNotExist:
+			response_data['message'] = "Message not found."
+			return Response(response_data, status=status.HTTP_404_NOT_FOUND)
+
+		except Exception as e:
+			response_data['message'] = str(e)
+			return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
 class getConversationMessages(APIView):
   @require_token
@@ -128,7 +236,7 @@ class getConversationMessages(APIView):
           'type': m.type,
           'body': m.body,
           'media_url': m.media_url,
-          # 'status': getattr(m, 'status', 'active'),
+          'status': m.status,
           'created_at': m.created_at,
           'updated_at': m.updated_at,
           'user_id' : user.id,

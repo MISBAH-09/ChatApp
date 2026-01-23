@@ -107,6 +107,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 "id": message.id,
                 "type": message.type,
                 "body": message.body,
+                "status" :message.status,
                 "media_url": f"{settings.MEDIA_URL}{message.media_url}" if message.media_url else None,
                 "sender_id": self.user.id,
                 "conversation_id": self.conversation_id,

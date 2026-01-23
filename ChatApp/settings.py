@@ -36,6 +36,7 @@ ALLOWED_HOSTS = []
 INSTALLED_APPS = [
     'daphne',
     'channels',
+    'django_crontab',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -89,16 +90,9 @@ CHANNEL_LAYERS = {
     }
 }
 
-# Redis (optional for production/multiple workers)
-# CHANNEL_LAYERS = {
-#     "default": {
-#         "BACKEND": "channels_redis.core.RedisChannelLayer",
-#         "CONFIG": {
-#             "hosts": [("127.0.0.1", 6379)],
-#         },
-#     },
-# }
-
+CRONJOBS = [
+    ('* * * * *', 'ChatApp.cron.process_email'),  # Every 1 minute
+]
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
