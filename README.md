@@ -1,6 +1,5 @@
 # ChatApp
 
-[![Ask DeepWiki](https://devin.ai/assets/askdeepwiki.png)](https://deepwiki.com/MISBAH-09/ChatApp)
 
 ChatApp is a real-time messaging application built with Django and Django Channels. It provides a full-featured backend for one-on-one instant messaging, including user authentication, message handling, and media sharing.
 
