@@ -46,6 +46,7 @@ class getConversationAPI(APIView):
             'conversation_id': common_conversation,
             'user_id' : other_user_data.id,
             'username' : other_user_data.username,
+            'email'   : other_user_data.email,
             'profile' : other_user_data.profile,
             'first_name' : other_user_data.first_name,
             'last_name' :other_user_data.last_name,
@@ -73,6 +74,7 @@ class getConversationAPI(APIView):
             'user_id' : other_user_data.id,
             'username' : other_user_data.username,
             'profile' : other_user_data.profile,
+            'email' : other_user_data.email,
             'first_name' : other_user_data.first_name,
             'last_name' :other_user_data.last_name       
           }
@@ -146,7 +148,8 @@ class getAllConversationsAPI(APIView):
                     'username': other_user_data.username if other_user_data else None,
                     'profile': other_user_data.profile if other_user_data else None,
                     'first_name': other_user_data.first_name if other_user_data else None,
-                    'last_name': other_user_data.last_name if other_user_data else None
+                    'last_name': other_user_data.last_name if other_user_data else None,
+                    'email' :other_user_data.email
                 })
 
             # Sort the data by latest_message_time ascending (None values go last)
