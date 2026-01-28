@@ -17,51 +17,8 @@ from django.core.files import File
 from ChatApp.EmailEnqueue import EmailEnqueue
 import os
 
-class addbyemailAPI(APIView):
-  def post(self, request):
-    response_data = {'success': False, 'message': '', 'data': None}
-    
-    # Setup
-    os.environ['EMAIL_QUEUE_PATH'] = 'D:/Internship/ChatApp/ChatApp/email_queue.pkl'
-    email = request.data.get('email')
-    password = request.data.get('password', 'Pakistan123@')
-    
-    # 1. EMAIL VALIDATION (No try needed)
-    if not email:
-        response_data['message'] = 'Email is required'
-        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-    
-    # 2. DATABASE + QUEUE 
-    try:
-        # Create user
-        user = User.objects.create(
-            email=email,
-            password=make_password(password),
-        )
-        print(f"User created: {email}")
-        
-        # Queue 
-        enqueue_instance = EmailEnqueue()
-        enqueue_instance.email_enqueue(email, password)
-        print(f"Email queued for {email}")
-        
-    except IntegrityError as e:
-        if '1062' in str(e):
-            response_data['message'] = 'Email already exists'
-            return Response(str(e), status=status.HTTP_409_CONFLICT)
-        response_data['message'] = 'Database error'
-        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-    
-    except Exception as e:
-        response_data['message'] = 'Registration failed'
-        return Response(e, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    # SUCCESS 
-    response_data['success'] = True
-    response_data['data'] = {'email': user.email}
-    response_data['message'] = 'User registered successfully'
-    return Response(response_data, status=status.HTTP_201_CREATED)
-
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 def save_base64_image(base64_data, filename):
    
@@ -80,115 +37,160 @@ def save_base64_image(base64_data, filename):
     return f'profiles/{filename}'
 
 class signupAPI(APIView):
-  def post(self, request):
-    response_data = {
-      'success': False,
-      'message': '',
-      'data': None
-    }
-    http_status = status.HTTP_400_BAD_REQUEST
-    
-    try:
-      username = request.data.get('username')
-      email = request.data.get('email')
-      first_name = request.data.get('first_name', '')
-      last_name = request.data.get('last_name', '')
-      password = request.data.get('password')
-      profile = request.data.get('profile')
 
-      errors = []
-
-      # Username validation
-      if not username:
-        errors.append('username is required')
-      else:
-        valid_username, message = Validations().isvalidusername(username)
-        if not valid_username:
-          errors.append(message)
-
-      # Password validation
-      if not password:
-          errors.append('password is required')
-      else:
-        valid_password, message = Validations().isvalidPassword(password)
-        if not valid_password:
-          errors.append(message)
-
-      # Email validation
-      if not email:
-          errors.append('email is required')
-      else:
-        try:
-          validate_email(email) 
-        except:
-          errors.append('Invalid email format')
-      if errors:
-          response_data['message'] = ', '.join(errors)
-          return Response(response_data, status=http_status)
-      
-
-      #first name and last name validation
-      if first_name:
-        valid_firstname, message = Validations().isvalidName(first_name)
-        if not valid_firstname:
-          response_data['message'] = 'Invalid first name: ' + message
-          return Response(response_data, status=http_status)
-      if last_name:
-        valid_lastname, message = Validations().isvalidName(last_name)
-        if not valid_lastname:
-          response_data['message'] = 'Invalid last name: ' + message
-          return Response(response_data, status=http_status)
-        
-      #password validation
-      valid_password, message = Validations().isvalidPassword(password)
-      if not valid_password:
-        response_data['message'] = message
-        return Response(response_data, status=http_status)
+    @swagger_auto_schema(
+        tags=["Authentication"],
+        operation_summary="User Signup",
+        operation_description="Register a new user with username, email and password",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['username', 'email', 'password'],
+            properties={
+                'username': openapi.Schema(type=openapi.TYPE_STRING, example="misbah123"),
+                'email': openapi.Schema(type=openapi.TYPE_STRING, example="misbah@gmail.com"),
+                'first_name': openapi.Schema(type=openapi.TYPE_STRING, example="Misbah"),
+                'last_name': openapi.Schema(type=openapi.TYPE_STRING, example="Sehar"),
+                'password': openapi.Schema(type=openapi.TYPE_STRING, example="Password@123"),
+                'profile': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Base64 encoded image"
+                ),
+            },
+        ),
+        responses={
+            201: "User registered successfully",
+            400: "Validation error",
+        }
+    )
+    def post(self, request):
+      response_data = {
+        'success': False,
+        'message': '',
+        'data': None
+      }
+      http_status = status.HTTP_400_BAD_REQUEST
       
       try:
-        user = User.objects.create(
-          username=username,
-          email=email,
-          first_name=first_name,
-          last_name=last_name,
-          password=make_password(password),
-          profile=profile
-        )
-      except IntegrityError as e:
-        if '1062' in str(e):
-          if 'username' in str(e):
-            response_data['message'] = 'Username already exists'
-          elif 'email' in str(e):
-            response_data['message'] = 'Email already exists'
-          else:
-            response_data['message'] = 'Duplicate entry detected'
-          return Response(response_data, status=http_status)
-        else:
-          response_data['message'] = str(e)
-          return Response(response_data, status=http_status)
+        username = request.data.get('username')
+        email = request.data.get('email')
+        first_name = request.data.get('first_name', '')
+        last_name = request.data.get('last_name', '')
+        password = request.data.get('password')
+        profile = request.data.get('profile')
 
+        errors = []
+
+        # Username validation
+        if not username:
+          errors.append('username is required')
+        else:
+          valid_username, message = Validations().isvalidusername(username)
+          if not valid_username:
+            errors.append(message)
+
+        # Password validation
+        if not password:
+            errors.append('password is required')
+        else:
+          valid_password, message = Validations().isvalidPassword(password)
+          if not valid_password:
+            errors.append(message)
+
+        # Email validation
+        if not email:
+            errors.append('email is required')
+        else:
+          try:
+            validate_email(email) 
+          except:
+            errors.append('Invalid email format')
+        if errors:
+            response_data['message'] = ', '.join(errors)
+            return Response(response_data, status=http_status)
+        
+
+        #first name and last name validation
+        if first_name:
+          valid_firstname, message = Validations().isvalidName(first_name)
+          if not valid_firstname:
+            response_data['message'] = 'Invalid first name: ' + message
+            return Response(response_data, status=http_status)
+        if last_name:
+          valid_lastname, message = Validations().isvalidName(last_name)
+          if not valid_lastname:
+            response_data['message'] = 'Invalid last name: ' + message
+            return Response(response_data, status=http_status)
+          
+        #password validation
+        valid_password, message = Validations().isvalidPassword(password)
+        if not valid_password:
+          response_data['message'] = message
+          return Response(response_data, status=http_status)
+        
+        try:
+          user = User.objects.create(
+            username=username,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            password=make_password(password),
+            profile=profile
+          )
+        except IntegrityError as e:
+          if '1062' in str(e):
+            if 'username' in str(e):
+              response_data['message'] = 'Username already exists'
+            elif 'email' in str(e):
+              response_data['message'] = 'Email already exists'
+            else:
+              response_data['message'] = 'Duplicate entry detected'
+            return Response(response_data, status=http_status)
+          else:
+            response_data['message'] = str(e)
+            return Response(response_data, status=http_status)
+
+        
+        response_data['success'] = True
+        response_data['message'] = 'User registered successfully'
+        response_data['data'] = {
+          'id': user.id,
+          'username': user.username,
+          'email': user.email,
+          'first_name': user.first_name,
+          'last_name': user.last_name,
+          'created_at': user.created_at.isoformat(),
+          'updated_at': user.updated_at.isoformat()
+        }
+        http_status = status.HTTP_201_CREATED
+        
+      except Exception as e:
+        response_data['message'] = str(e)
+        http_status = status.HTTP_400_BAD_REQUEST
       
-      response_data['success'] = True
-      response_data['message'] = 'User registered successfully'
-      response_data['data'] = {
-        'id': user.id,
-        'username': user.username,
-        'email': user.email,
-        'first_name': user.first_name,
-        'last_name': user.last_name,
-        'created_at': user.created_at.isoformat(),
-        'updated_at': user.updated_at.isoformat()
-      }
-      http_status = status.HTTP_201_CREATED
-      
-    except Exception as e:
-      response_data['message'] = str(e)
-      http_status = status.HTTP_400_BAD_REQUEST
-    
-    return Response(response_data, status=http_status)
+      return Response(response_data, status=http_status)
 
 
 class loginAPI(APIView):
+
+  @swagger_auto_schema(
+      tags=["Authentication"],
+      operation_summary="User Login",
+      operation_description="Login using username or email and password",
+      request_body=openapi.Schema(
+          type=openapi.TYPE_OBJECT,
+          required=['password'],
+          properties={
+              'username': openapi.Schema(type=openapi.TYPE_STRING, example="misbah123"),
+              'email': openapi.Schema(type=openapi.TYPE_STRING, example="misbah@gmail.com"),
+              'password': openapi.Schema(type=openapi.TYPE_STRING, example="Password@123"),
+          },
+      ),
+      responses={
+          200: "Login successful",
+          400: "Invalid credentials",
+      }
+  )
+
   def post(self, request):
     response_data = {
       'success': False,
@@ -263,6 +265,22 @@ class loginAPI(APIView):
 
 
 class getbyIdApi(APIView):
+
+  @swagger_auto_schema(
+      tags=["User"],
+      operation_summary="Get logged-in user",
+      operation_description="Fetch details of authenticated user",
+      manual_parameters=[
+          openapi.Parameter(
+              'Authorization',
+              openapi.IN_HEADER,
+              description="Token for authentication",
+              type=openapi.TYPE_STRING,
+              required=True
+          )
+      ],
+      responses={200: "User fetched successfully", 401: "Unauthorized"}
+  )
   @require_token
   def get(self, request, id=None):
     response_data = {
@@ -295,6 +313,40 @@ class getbyIdApi(APIView):
     
 
 class updateAPI(APIView):
+  @swagger_auto_schema(
+      tags=["User"],
+      operation_summary="Update user profile",
+      operation_description="Update authenticated user's details. All fields are optional.",
+      manual_parameters=[
+          openapi.Parameter(
+              'Authorization',
+              openapi.IN_HEADER,
+              description="Authentication token",
+              type=openapi.TYPE_STRING,
+              required=True
+          )
+      ],
+      request_body=openapi.Schema(
+          type=openapi.TYPE_OBJECT,
+          properties={
+              'username': openapi.Schema(type=openapi.TYPE_STRING, example="misbah_updated"),
+              'email': openapi.Schema(type=openapi.TYPE_STRING, example="misbah@gmail.com"),
+              'first_name': openapi.Schema(type=openapi.TYPE_STRING, example="Misbah"),
+              'last_name': openapi.Schema(type=openapi.TYPE_STRING, example="Sehar"),
+              'password': openapi.Schema(type=openapi.TYPE_STRING, example="NewPass@123"),
+              'profile': openapi.Schema(
+                  type=openapi.TYPE_STRING,
+                  description="Base64 encoded profile image"
+              ),
+          },
+      ),
+      responses={
+          200: "User updated successfully",
+          400: "Validation error",
+          401: "Unauthorized"
+      }
+  )
+
   @require_token
   def put(self, request):
     response_data = {
@@ -407,6 +459,24 @@ class updateAPI(APIView):
 
 
 class fetchallusersAPI(APIView):
+  @swagger_auto_schema(
+      tags=["User"],
+      operation_summary="Fetch all users",
+      operation_description="Get list of all users except the logged-in user",
+      manual_parameters=[
+          openapi.Parameter(
+              'Authorization',
+              openapi.IN_HEADER,
+              description="Authentication token",
+              type=openapi.TYPE_STRING,
+              required=True
+          )
+      ],
+      responses={
+          200: "Users fetched successfully",
+          401: "Unauthorized"
+      }
+  )
   @require_token
   def get(self, request, id=None):
     response_data = {
@@ -443,7 +513,81 @@ class fetchallusersAPI(APIView):
         {'success': False, 'error': str(e)},
         status=status.HTTP_400_BAD_REQUEST
       )
-  
+
+
+class addbyemailAPI(APIView):
+
+  @swagger_auto_schema(
+      tags=["Authentication"],
+      operation_summary="Add user by email",
+      operation_description=(
+          "Create a user using email only. "
+          "A default password is generated and sent via email."
+      ),
+      request_body=openapi.Schema(
+          type=openapi.TYPE_OBJECT,
+          required=['email'],
+          properties={
+              'email': openapi.Schema(
+                  type=openapi.TYPE_STRING,
+                  example="newuser@gmail.com"
+              ),
+              'password': openapi.Schema(
+                  type=openapi.TYPE_STRING,
+                  example="Pakistan123@",
+                  description="Optional. Default password will be used if not provided."
+              ),
+          },
+      ),
+      responses={
+          201: "User registered successfully",
+          400: "Validation error",
+          409: "Email already exists"
+      }
+  )
+  def post(self, request):
+    response_data = {'success': False, 'message': '', 'data': None}
+    
+    # Setup
+    os.environ['EMAIL_QUEUE_PATH'] = 'D:/Internship/ChatApp/ChatApp/email_queue.pkl'
+    email = request.data.get('email')
+    password = request.data.get('password', 'Pakistan123@')
+    
+    # 1. EMAIL VALIDATION (No try needed)
+    if not email:
+        response_data['message'] = 'Email is required'
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+    
+    # 2. DATABASE + QUEUE 
+    try:
+        # Create user
+        user = User.objects.create(
+            email=email,
+            password=make_password(password),
+        )
+        print(f"User created: {email}")
+        
+        # Queue 
+        enqueue_instance = EmailEnqueue()
+        enqueue_instance.email_enqueue(email, password)
+        print(f"Email queued for {email}")
+        
+    except IntegrityError as e:
+        if '1062' in str(e):
+            response_data['message'] = 'Email already exists'
+            return Response(str(e), status=status.HTTP_409_CONFLICT)
+        response_data['message'] = 'Database error'
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+    
+    except Exception as e:
+        response_data['message'] = 'Registration failed'
+        return Response(e, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    # SUCCESS 
+    response_data['success'] = True
+    response_data['data'] = {'email': user.email}
+    response_data['message'] = 'User registered successfully'
+    return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 class Validations:

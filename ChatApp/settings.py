@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'chats',
     'ChatApp',
     'corsheaders',
+    'drf_yasg',
    
 ]
 
@@ -81,6 +82,15 @@ TEMPLATES = [
     },
 ]
 
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+        }
+    },
+}
 # WSGI_APPLICATION = 'ChatApp.wsgi.application'
 ASGI_APPLICATION = "ChatApp.asgi.application"
 

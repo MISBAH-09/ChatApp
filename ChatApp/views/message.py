@@ -8,6 +8,10 @@ from ChatApp import settings
 import base64
 import os
 
+
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
 def save_base64_image(base64_data, filename):
     if ',' in base64_data:
         base64_data = base64_data.split(',')[1]
@@ -39,6 +43,47 @@ def save_base64_audio(base64_data, filename):
 
 
 class sendMessageAPI(APIView):
+	@swagger_auto_schema(
+			tags=["Messages"],
+			operation_summary="Send message",
+			operation_description=(
+					"Send a text, image, or audio message in a conversation. "
+					"For image/audio, provide Base64 encoded media."
+			),
+			manual_parameters=[
+					openapi.Parameter(
+							'Authorization',
+							openapi.IN_HEADER,
+							description="Bearer your_token_here",
+							type=openapi.TYPE_STRING,
+							required=True
+					)
+			],
+			request_body=openapi.Schema(
+					type=openapi.TYPE_OBJECT,
+					required=['conversation_id', 'type'],
+					properties={
+							'conversation_id': openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
+							'type': openapi.Schema(
+									type=openapi.TYPE_STRING,
+									enum=['text', 'image', 'audio'],
+									example='text'
+							),
+							'body': openapi.Schema(type=openapi.TYPE_STRING, example="Hello 👋"),
+							'status': openapi.Schema(type=openapi.TYPE_STRING, example="active"),
+							'media': openapi.Schema(
+									type=openapi.TYPE_STRING,
+									description="Base64 encoded image/audio"
+							),
+					}
+			),
+			responses={
+					201: "Message sent successfully",
+					400: "Validation error",
+					401: "Unauthorized",
+					404: "Conversation not found"
+			}
+	)
 	@require_token
 	def post(self, request):
 		try:
@@ -105,6 +150,33 @@ class sendMessageAPI(APIView):
 			)
 
 class deleteMessageAPI(APIView):
+	@swagger_auto_schema(
+			tags=["Messages"],
+			operation_summary="Delete message",
+			operation_description="Soft delete a message. Only sender can delete.",
+			manual_parameters=[
+					openapi.Parameter(
+							'Authorization',
+							openapi.IN_HEADER,
+							description="Bearer your_token_here",
+							type=openapi.TYPE_STRING,
+							required=True
+					)
+			],
+			request_body=openapi.Schema(
+					type=openapi.TYPE_OBJECT,
+					required=['message_id'],
+					properties={
+							'message_id': openapi.Schema(type=openapi.TYPE_INTEGER, example=10),
+					}
+			),
+			responses={
+					200: "Message deleted successfully",
+					400: "Already deleted / invalid request",
+					403: "Not authorized",
+					404: "Message not found"
+			}
+	)
 	@require_token
 	def post(self, request):
 		try:
@@ -159,6 +231,34 @@ class deleteMessageAPI(APIView):
 			)
 
 class UpdateMessageAPI(APIView):
+	@swagger_auto_schema(
+			tags=["Messages"],
+			operation_summary="Update message",
+			operation_description="Update text of an existing message. Only sender can update.",
+			manual_parameters=[
+					openapi.Parameter(
+							'Authorization',
+							openapi.IN_HEADER,
+							description="Bearer your_token_here",
+							type=openapi.TYPE_STRING,
+							required=True
+					)
+			],
+			request_body=openapi.Schema(
+					type=openapi.TYPE_OBJECT,
+					required=['message_id', 'message_body'],
+					properties={
+							'message_id': openapi.Schema(type=openapi.TYPE_INTEGER, example=5),
+							'message_body': openapi.Schema(type=openapi.TYPE_STRING, example="Updated message"),
+					}
+			),
+			responses={
+					200: "Message updated successfully",
+					400: "Invalid request",
+					403: "Not authorized",
+					404: "Message not found"
+			}
+	)
 	@require_token
 	def put(self, request):
 		response_data = {
@@ -170,6 +270,7 @@ class UpdateMessageAPI(APIView):
 		user = request.auth_user
 		message_id = request.data.get('message_id')
 		message_body = request.data.get('message_body')
+		print(message_body)
 
 		# Validate input
 		if not message_id or message_body is None:
@@ -213,48 +314,85 @@ class UpdateMessageAPI(APIView):
 			return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
 class getConversationMessages(APIView):
-  @require_token
-  def post(self, request):
-    try:
-      user = request.auth_user
-      conversation_id = request.data.get('conversation_id')  # Use query_params for GET
 
-      if not conversation_id:
-        return Response({'success': False, 'error': 'conversation_id is required'},status=status.HTTP_400_BAD_REQUEST)
+	@swagger_auto_schema(
+		tags=["Messages"],
+		operation_summary="Get conversation messages",
+		operation_description="Fetch all messages of a conversation ordered by time.",
+		manual_parameters=[
+				openapi.Parameter(
+						'Authorization',
+						openapi.IN_HEADER,
+						description="Bearer your_token_here",
+						type=openapi.TYPE_STRING,
+						required=True
+				)
+		],
+		request_body=openapi.Schema(
+				type=openapi.TYPE_OBJECT,
+				required=['conversation_id'],
+				properties={
+						'conversation_id': openapi.Schema(type=openapi.TYPE_INTEGER, example=2),
+				}
+		),
+		responses={
+				200: "Messages fetched successfully",
+				400: "Validation error",
+				404: "Conversation not found"
+		}
+	)
+	@require_token
+	def post(self, request):
+		try:
+			user = request.auth_user
+			conversation_id = request.data.get('conversation_id')
 
-      conversation = Conversations.objects.get(id=conversation_id)
-      messages = Message.objects.filter(conversation_id=conversation).order_by('created_at')
+			if not conversation_id:
+					return Response(
+							{'success': False, 'error': 'conversation_id is required'},
+							status=status.HTTP_400_BAD_REQUEST
+					)
 
- 
-      messages_data = []
-      for m in messages:
-        
-        senderdata =User.objects.get(id=m.sender_id.id)
+			conversation = Conversations.objects.get(id=conversation_id)
+			messages = Message.objects.filter(
+					conversation_id=conversation
+			).order_by('created_at')
 
-        messages_data.append({
-          'id': m.id,
-          'type': m.type,
-          'body': m.body,
-          'media_url': m.media_url,
-          'status': m.status,
-          'created_at': m.created_at,
-          'updated_at': m.updated_at,
-          'user_id' : user.id,
-          'sender_id': m.sender_id.id,
-          'conversation_id': m.conversation_id.id,
-          'sender_first_name':senderdata.first_name,
-          'sender_last_name':senderdata.last_name,
-          'sender_profile':senderdata.profile,
-          'sender_username':senderdata.username
-        })
-          
-      return Response({
-        'success': True,
-        'message': 'Messages fetched successfully',
-        'data': messages_data
-      }, status=status.HTTP_200_OK)
+			messages_data = []
+			for m in messages:
+					senderdata = User.objects.get(id=m.sender_id.id)
 
-    except Conversations.DoesNotExist:
-      return Response({'success': False, 'error': 'Conversation not found'},status=status.HTTP_404_NOT_FOUND)
-    except Exception as e:
-      return Response({'success': False, 'error': str(e)},status=status.HTTP_400_BAD_REQUEST)
+					messages_data.append({
+							'id': m.id,
+							'type': m.type,
+							'body': m.body,
+							'media_url': m.media_url,
+							'status': m.status,
+							'created_at': m.created_at,
+							'updated_at': m.updated_at,
+							'user_id': user.id,
+							'sender_id': m.sender_id.id,
+							'conversation_id': m.conversation_id.id,
+							'sender_first_name': senderdata.first_name,
+							'sender_last_name': senderdata.last_name,
+							'sender_profile': senderdata.profile,
+							'sender_username': senderdata.username
+					})
+
+			return Response({
+					'success': True,
+					'message': 'Messages fetched successfully',
+					'data': messages_data
+			}, status=status.HTTP_200_OK)
+
+		except Conversations.DoesNotExist:
+			return Response(
+					{'success': False, 'error': 'Conversation not found'},
+					status=status.HTTP_404_NOT_FOUND
+			)
+
+		except Exception as e:
+			return Response(
+					{'success': False, 'error': str(e)},
+					status=status.HTTP_400_BAD_REQUEST
+			)  # debug error

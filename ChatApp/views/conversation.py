@@ -7,86 +7,148 @@ from ..middleware.auth import require_token
 import datetime
 from django.utils import timezone
 
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
 max_dt = timezone.make_aware(datetime.datetime.max)
 
 class getConversationAPI(APIView):
-  @require_token
-  def post(self, request):
-    try:
-      user = request.auth_user
-      my_id = str(user.id)
-      other_user_id = str(request.data.get('user_id'))
-      title = request.data.get('title', 'New Chat')
+	@swagger_auto_schema(
+		tags=["Conversations"],
+		operation_summary="Create or get conversation",
+		operation_description=(
+				"Create a new conversation with another user, "
+				"or return existing conversation if already created."
+		),
+		manual_parameters=[
+			openapi.Parameter(
+				'Authorization',
+				openapi.IN_HEADER,
+				description="Bearer your_token_here",
+				type=openapi.TYPE_STRING,
+				required=True
+			)
+		],
+		request_body=openapi.Schema(
+			type=openapi.TYPE_OBJECT,
+			required=['user_id'],
+			properties={
+				'user_id': openapi.Schema(
+					type=openapi.TYPE_INTEGER,
+					example=5,
+					description="Other user's ID"
+				),
+				'title': openapi.Schema(
+					type=openapi.TYPE_STRING,
+					example="New Chat",
+					description="Optional conversation title"
+				),
+			}
+		),
+		responses={
+			200: "Conversation already exists",
+			201: "New conversation created",
+			400: "Validation error",
+			401: "Unauthorized"
+		}
+	)
+	@require_token
+	def post(self, request):
+			try:
+					user = request.auth_user
+					my_id = str(user.id)
+					other_user_id = str(request.data.get('user_id'))
+					title = request.data.get('title', 'New Chat')
 
-      if not other_user_id:
-        return Response(
-            {'success': False, 'message': 'user_id is required'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+					if not other_user_id:
+							return Response(
+									{'success': False, 'message': 'user_id is required'},
+									status=status.HTTP_400_BAD_REQUEST
+							)
 
-      other_user_data = User.objects.get(id=other_user_id)
+					other_user_data = User.objects.get(id=other_user_id)
+
+					# Wrap IDs with commas
+					search_my_id = f"{my_id},"
+					search_other_id = f"{other_user_id},"
+
+					# Check if conversation exists
+					common_conversation = Conversations_Users.objects.filter(
+							user_ids__contains=search_my_id
+					).filter(
+							user_ids__contains=search_other_id
+					).values_list('conversation_id', flat=True).first()
+
+					if common_conversation:
+							return Response({
+									'success': True,
+									'message': 'Conversation already exists',
+									'data': {
+											'conversation_id': common_conversation,
+											'user_id': other_user_data.id,
+											'username': other_user_data.username,
+											'email': other_user_data.email,
+											'profile': other_user_data.profile,
+											'first_name': other_user_data.first_name,
+											'last_name': other_user_data.last_name,
+											'title': title
+									}
+							}, status=status.HTTP_200_OK)
+
+					conversation = Conversations.objects.create(title=title)
+
+					all_user_ids = f"{my_id},{other_user_id},"
+
+					Conversations_Users.objects.create(
+							conversation_id=conversation,
+							user_ids=all_user_ids
+					)
+
+					return Response({
+							'success': True,
+							'message': 'New conversation created',
+							'data': {
+									'conversation_id': conversation.id,
+									'user_id': other_user_data.id,
+									'username': other_user_data.username,
+									'profile': other_user_data.profile,
+									'email': other_user_data.email,
+									'first_name': other_user_data.first_name,
+									'last_name': other_user_data.last_name
+							}
+					}, status=status.HTTP_201_CREATED)
+
+			except Exception as e:
+					return Response(
+							{'success': False, 'error': str(e)},
+							status=status.HTTP_400_BAD_REQUEST
+					)	
 
 
-      # Wrap IDs with commas 
-      search_my_id = f"{my_id},"
-      search_other_id = f"{other_user_id},"
-
-      # does exsists
-      common_conversation = Conversations_Users.objects.filter(
-          user_ids__contains=search_my_id
-      ).filter(
-          user_ids__contains=search_other_id
-      ).values_list('conversation_id', flat=True).first()
-
-      if common_conversation:
-        return Response({
-          'success': True,
-          'message': 'Conversation already exists',
-          'data': {
-            'conversation_id': common_conversation,
-            'user_id' : other_user_data.id,
-            'username' : other_user_data.username,
-            'email'   : other_user_data.email,
-            'profile' : other_user_data.profile,
-            'first_name' : other_user_data.first_name,
-            'last_name' :other_user_data.last_name,
-            'title' : title       
-          }
-        }, status=status.HTTP_200_OK)
-
-      conversation = Conversations.objects.create(
-        title=title
-      )
-
-      # Store IDs as comma-separated string
-      all_user_ids = f"{my_id},{other_user_id},"
-
-      Conversations_Users.objects.create(
-          conversation_id=conversation,
-          user_ids=all_user_ids
-      )
-
-      return Response({
-          'success': True,
-          'message': 'New conversation created',
-          'data': {
-            'conversation_id': conversation.id,
-            'user_id' : other_user_data.id,
-            'username' : other_user_data.username,
-            'profile' : other_user_data.profile,
-            'email' : other_user_data.email,
-            'first_name' : other_user_data.first_name,
-            'last_name' :other_user_data.last_name       
-          }
-      }, status=status.HTTP_201_CREATED)
-
-    except Exception as e:
-      return Response(
-          {'success': False, 'error': str(e)},
-          status=status.HTTP_400_BAD_REQUEST
-      )
-    
 class getAllConversationsAPI(APIView):
+
+    @swagger_auto_schema(
+        tags=["Conversations"],
+        operation_summary="Get all conversations",
+        operation_description=(
+            "Fetch all conversations of the authenticated user, "
+            "including latest message preview."
+        ),
+        manual_parameters=[
+            openapi.Parameter(
+                'Authorization',
+                openapi.IN_HEADER,
+                description="Bearer your_token_here",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        responses={
+            200: "Conversations fetched successfully",
+            400: "Error occurred",
+            401: "Unauthorized"
+        }
+    )
     @require_token
     def get(self, request):
         try:
