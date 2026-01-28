@@ -145,7 +145,7 @@ All protected endpoints require an `Authorization: Bearer <token>` header.
 | `POST` | `/login/`         | Log in a user to receive an authentication token.   | None           |
 | `GET`  | `/get/`           | Get the profile of the authenticated user.          | Required       |
 | `PUT`  | `/update/`        | Update the profile of the authenticated user.       | Required       |
-| `GET`  | `/fetchallusers/` | Get a list of all users except the current user.    | Required       |
+| `GET`  | `/fetchAllUsers/` | Get a list of all users except the current user.    | Required       |
 | `POST` | `/addbyemail/`    | Create a new user by email and send welcome message.| None           |
 
 ### Conversation & Messaging
@@ -156,8 +156,8 @@ All protected endpoints require an `Authorization: Bearer <token>` header.
 | `GET`  | `/getAllConversations/`    | Get all conversations for the authenticated user.    | Required       |
 | `POST` | `/sendMessage/`            | Send a message to a conversation.                   | Required       |
 | `POST` | `/getConversationMessages/`| Get all messages for a specific conversation.       | Required       |
-| `POST` | `/delete_message/`         | Delete a message sent by the user.                  | Required       |
-| `PUT`  | `/update-message/`         | Update the body of a text message sent by the user. | Required       |
+| `POST` | `/deleteMessage/`         | Delete a message sent by the user.                  | Required       |
+| `PUT`  | `/updateMessage/`         | Update the body of a text message sent by the user. | Required       |
 
 
 ## WebSocket API
