@@ -7,10 +7,9 @@ from ..middleware.auth import require_token
 from ChatApp import settings
 import base64
 import os
-
-
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+
 
 def save_base64_image(base64_data, filename):
     if ',' in base64_data:
