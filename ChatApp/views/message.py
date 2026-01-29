@@ -291,6 +291,7 @@ class UpdateMessageAPI(APIView):
 
 			# Update the message body
 			message.body = message_body
+			message.is_edited = True
 			message.save()
 
 			response_data['success'] = True
@@ -299,6 +300,7 @@ class UpdateMessageAPI(APIView):
 				'id': message.id,
 				'body': message.body,
 				'status': message.status,
+				'is_edited' : message.is_edited,
 				'updated_at': message.updated_at.isoformat() if hasattr(message, 'updated_at') else None,
 			}
 
@@ -367,6 +369,7 @@ class getConversationMessages(APIView):
 							'body': m.body,
 							'media_url': m.media_url,
 							'status': m.status,
+							'is_edited': m.is_edited,
 							'created_at': m.created_at,
 							'updated_at': m.updated_at,
 							'user_id': user.id,

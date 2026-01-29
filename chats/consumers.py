@@ -12,8 +12,8 @@ from ChatApp import settings
 # =============================
 # DEV PRESENCE STORE
 # =============================
-CONNECTED_USERS = {}        # { user_id: set(channel_names) }
-USER_CONVERSATIONS = {}     # { user_id: set(conversation_ids) }
+CONNECTED_USERS = {}       
+USER_CONVERSATIONS = {}    
 
 # -----------------------------
 # SYNC HELPERS
@@ -160,8 +160,9 @@ class GlobalConsumer(AsyncWebsocketConsumer):
                     "id": message.id,
                     "type": message.type,
                     "body": message.body,
+                    "is_edited" : message.is_edited,
                     "status": message.status,
-                    "media_url": f"{settings.MEDIA_URL}{message.media_url}" if message.media_url else None,
+                    "media_url": message.media_url if message.media_url else None,
                     "conversation_id": conversation_id,
                     "sender_id": self.user.id,
                     "sender_first_name": self.user.first_name,
