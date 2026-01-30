@@ -44,13 +44,14 @@ urlpatterns = [
     path('update/', updateAPI.as_view(), name='update_user'),
     path('fetchAllUsers/', fetchallusersAPI.as_view()),
     path('addbyemail/', addbyemailAPI.as_view()),
-
     path('getConversation/', getConversationAPI.as_view()),
     path('getAllConversations/', getAllConversationsAPI.as_view()),
-    path('sendMessage/', sendMessageAPI.as_view()),
     path('deleteMessage/', deleteMessageAPI.as_view()), 
     path('updateMessage/', UpdateMessageAPI.as_view()),
     path('getConversationMessages/', getConversationMessages.as_view()),
+
+    # apis we are not using shift to sockets
+    path('sendMessage/', sendMessageAPI.as_view()),
 
     # ===== SWAGGER =====
     re_path(r'^swagger(?P<format>\.json|\.yaml)$',

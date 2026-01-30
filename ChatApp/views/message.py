@@ -314,8 +314,8 @@ class UpdateMessageAPI(APIView):
 			response_data['message'] = str(e)
 			return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
-class getConversationMessages(APIView):
 
+class getConversationMessages(APIView):
 	@swagger_auto_schema(
 		tags=["Messages"],
 		operation_summary="Get conversation messages",
@@ -342,59 +342,81 @@ class getConversationMessages(APIView):
 				404: "Conversation not found"
 		}
 	)
+
 	@require_token
 	def post(self, request):
-		try:
-			user = request.auth_user
-			conversation_id = request.data.get('conversation_id')
+			try:
+					user = request.auth_user
+					conversation_id = request.data.get('conversation_id')
 
-			if not conversation_id:
+					if not conversation_id:
+							return Response(
+									{'success': False, 'error': 'conversation_id is required'},
+									status=status.HTTP_400_BAD_REQUEST
+							)
+
+					conversation = Conversations.objects.get(id=conversation_id)
+
+					# 🔹 Fetch conversation users ONCE
+					cu = Conversations_Users.objects.get(conversation_id=conversation)
+					user_ids = [
+							int(uid.strip())
+							for uid in cu.user_ids.split(",")
+							if uid.strip()
+					]
+
+					# 🔹 Fetch all users in ONE query
+					users = User.objects.filter(id__in=user_ids)
+					users_map = {u.id: u for u in users}
+
+					# 🔹 Fetch messages
+					messages = Message.objects.filter(
+							conversation_id=conversation
+					).select_related('sender_id').order_by('created_at')
+
+					messages_data = []
+					for m in messages:
+							sender = users_map.get(m.sender_id.id)
+
+							messages_data.append({
+									'id': m.id,
+									'type': m.type,
+									'body': m.body,
+									'media_url': m.media_url,
+									'status': m.status,
+									'is_edited': m.is_edited,
+									'created_at': m.created_at,
+									'updated_at': m.updated_at,
+									'conversation_id': conversation.id,
+
+									# sender info
+									'sender_id': m.sender_id.id,
+									'sender_first_name': sender.first_name if sender else "",
+									'sender_last_name': sender.last_name if sender else "",
+									'sender_username': sender.username if sender else "",
+									'sender_profile': sender.profile if sender else None,
+							})
+
+					return Response({
+							'success': True,
+							'message': 'Messages fetched successfully',
+							'data': messages_data
+					}, status=status.HTTP_200_OK)
+
+			except Conversations.DoesNotExist:
 					return Response(
-							{'success': False, 'error': 'conversation_id is required'},
-							status=status.HTTP_400_BAD_REQUEST
+							{'success': False, 'error': 'Conversation not found'},
+							status=status.HTTP_404_NOT_FOUND
 					)
 
-			conversation = Conversations.objects.get(id=conversation_id)
-			messages = Message.objects.filter(
-					conversation_id=conversation
-			).order_by('created_at')
+			except Conversations_Users.DoesNotExist:
+					return Response(
+							{'success': False, 'error': 'Conversation users not found'},
+							status=status.HTTP_404_NOT_FOUND
+					)
 
-			messages_data = []
-			for m in messages:
-					senderdata = User.objects.get(id=m.sender_id.id)
-
-					messages_data.append({
-							'id': m.id,
-							'type': m.type,
-							'body': m.body,
-							'media_url': m.media_url,
-							'status': m.status,
-							'is_edited': m.is_edited,
-							'created_at': m.created_at,
-							'updated_at': m.updated_at,
-							'user_id': user.id,
-							'sender_id': m.sender_id.id,
-							'conversation_id': m.conversation_id.id,
-							'sender_first_name': senderdata.first_name,
-							'sender_last_name': senderdata.last_name,
-							'sender_profile': senderdata.profile,
-							'sender_username': senderdata.username
-					})
-
-			return Response({
-					'success': True,
-					'message': 'Messages fetched successfully',
-					'data': messages_data
-			}, status=status.HTTP_200_OK)
-
-		except Conversations.DoesNotExist:
-			return Response(
-					{'success': False, 'error': 'Conversation not found'},
-					status=status.HTTP_404_NOT_FOUND
-			)
-
-		except Exception as e:
-			return Response(
-					{'success': False, 'error': str(e)},
-					status=status.HTTP_400_BAD_REQUEST
-			)  # debug error
+			except Exception as e:
+					return Response(
+							{'success': False, 'error': str(e)},
+							status=status.HTTP_400_BAD_REQUEST
+					)
