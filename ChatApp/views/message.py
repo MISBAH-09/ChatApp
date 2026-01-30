@@ -229,7 +229,7 @@ class deleteMessageAPI(APIView):
 				status=status.HTTP_400_BAD_REQUEST
 			)
 
-class UpdateMessageAPI(APIView):
+class updateMessageAPI(APIView):
 	@swagger_auto_schema(
 			tags=["Messages"],
 			operation_summary="Update message",
@@ -357,7 +357,7 @@ class getConversationMessages(APIView):
 
 					conversation = Conversations.objects.get(id=conversation_id)
 
-					# 🔹 Fetch conversation users ONCE
+					# Fetch conversation users ONCE
 					cu = Conversations_Users.objects.get(conversation_id=conversation)
 					user_ids = [
 							int(uid.strip())
@@ -365,11 +365,11 @@ class getConversationMessages(APIView):
 							if uid.strip()
 					]
 
-					# 🔹 Fetch all users in ONE query
+					# Fetch all users in ONE query
 					users = User.objects.filter(id__in=user_ids)
 					users_map = {u.id: u for u in users}
 
-					# 🔹 Fetch messages
+					# Fetch messages
 					messages = Message.objects.filter(
 							conversation_id=conversation
 					).select_related('sender_id').order_by('created_at')

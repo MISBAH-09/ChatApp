@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from .views import loginAPI, signupAPI, getbyIdApi, updateAPI, fetchallusersAPI,addbyemailAPI, getConversationAPI, getAllConversationsAPI ,sendMessageAPI , getConversationMessages ,deleteMessageAPI ,UpdateMessageAPI
+from .views import loginAPI, signupAPI, getByIdApi, updateAPI, fetchAllUsersAPI,addByEmailAPI, getConversationAPI, getAllConversationsAPI ,sendMessageAPI , getConversationMessages ,deleteMessageAPI ,updateMessageAPI
 
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
@@ -40,14 +40,14 @@ urlpatterns = [
     # ===== YOUR APIs =====
     path('signup/', signupAPI.as_view(), name='signup'),
     path('login/', loginAPI.as_view(), name='login'),
-    path('get/', getbyIdApi.as_view(), name='get_user'),
+    path('get/', getByIdApi.as_view(), name='get_user'),
     path('update/', updateAPI.as_view(), name='update_user'),
-    path('fetchAllUsers/', fetchallusersAPI.as_view()),
-    path('addbyemail/', addbyemailAPI.as_view()),
+    path('fetchAllUsers/', fetchAllUsersAPI.as_view()),
+    path('addbyemail/', addByEmailAPI.as_view()),
     path('getConversation/', getConversationAPI.as_view()),
     path('getAllConversations/', getAllConversationsAPI.as_view()),
     path('deleteMessage/', deleteMessageAPI.as_view()), 
-    path('updateMessage/', UpdateMessageAPI.as_view()),
+    path('updateMessage/', updateMessageAPI.as_view()),
     path('getConversationMessages/', getConversationMessages.as_view()),
 
     # apis we are not using shift to sockets

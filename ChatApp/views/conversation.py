@@ -73,23 +73,27 @@ class getConversationAPI(APIView):
 				final_user_ids = ",".join(all_user_ids) + ","
 
 				conversation = Conversations.objects.create(title=title)
-				Conversations_Users.objects.create(
-					conversation_id=conversation,
-					is_group=True,
-					user_ids=final_user_ids
-				)
-
+				if conversation:
+					Conversations_Users.objects.create(
+						conversation_id=conversation,
+						is_group=True,
+						user_ids=final_user_ids
+					)
+				else :
+					return Response({"success": False, "message": "Converation creation failed"}, status=400)
+				
 				users = User.objects.filter(id__in=[int(uid) for uid in all_user_ids])
-				users_data = [
-					{
-						"user_id": u.id,
-						"username": u.username,
-						"email": u.email,
-						"first_name": u.first_name,
-						"last_name": u.last_name,
-						"profile": u.profile if u.profile else None
-					} for u in users
-				]
+				if users:
+					users_data = [
+						{
+							"user_id": u.id,
+							"username": u.username,
+							"email": u.email,
+							"first_name": u.first_name,
+							"last_name": u.last_name,
+							"profile": u.profile if u.profile else None
+						} for u in users
+					]
 
 				return Response({
 					"success": True,
@@ -196,64 +200,57 @@ class getAllConversationsAPI(APIView):
 			max_dt = None  # fallback for sorting
 
 			for cu in conversations:
-					if not cu.conversation_id:
-							continue  
+				conversation = cu.conversation_id 
+				# Split user_ids and get other users
+				other_user_ids = [uid.strip() for uid in cu.user_ids.split(",") if uid.strip() and uid != my_id]
+						
+				other_users_qs = User.objects.filter(id__in=other_user_ids)
+				other_users_data = [
+						{
+								'user_id': u.id,
+								'username': u.username,
+								'profile': u.profile,
+								'first_name': u.first_name,
+								'last_name': u.last_name,
+								'email': u.email
+						}
+						for u in other_users_qs
+				]
 
-					conversation = cu.conversation_id  
+				# Get the latest message in this conversation
+				latest_message = (
+					Message.objects.filter(conversation_id=conversation) # Check and fix
+					.order_by('-created_at')
+					.first()
+				)
 
-					# Split user_ids and get other users
-					user_ids_list = [uid.strip() for uid in cu.user_ids.split(",") if uid.strip()]
-					other_user_ids = [uid for uid in user_ids_list if uid != my_id]
+				# Determine what to show for message
+				message = None
+				latest_message_time = None
+				if latest_message:
+					latest_message_time = latest_message.created_at
+					max_dt = max_dt or latest_message_time  # fallback for sorting
+					if latest_message.type == 'audio':
+							message = 'audio..'
+					elif latest_message.type == 'image':
+							message = 'image..'
+					elif latest_message.type == 'text':
+							message = latest_message.body
 
-					other_users_data = []
-					for uid in other_user_ids:
-						try:
-							other_user = User.objects.get(id=int(uid))
-							other_users_data.append({
-								'user_id': other_user.id,
-								'username': other_user.username,
-								'profile': other_user.profile,
-								'first_name': other_user.first_name,
-								'last_name': other_user.last_name,
-								'email': other_user.email
-							})
-						except (User.DoesNotExist, ValueError):
-							continue
-
-					# Get the latest message in this conversation
-					latest_message = (
-						Message.objects.filter(conversation_id=conversation.id)
-						.order_by('-created_at')
-						.first()
-					)
-
-					# Determine what to show for message
-					message = None
-					latest_message_time = None
-					if latest_message:
-						latest_message_time = latest_message.created_at
-						max_dt = max_dt or latest_message_time  # fallback for sorting
-						if latest_message.type == 'audio':
-								message = 'audio..'
-						elif latest_message.type == 'image':
-								message = 'image..'
-						elif latest_message.type == 'text':
-								message = latest_message.body
-
-					# Append conversation data
-					data.append({
-						'conversation_user_ids': cu.user_ids,
-						'conversation_id': conversation.id,
-						'is_group': cu.is_group,
-						'title': conversation.title,
-						'latest_message_id': latest_message.id if latest_message else None,
-						'latest_message_body': message,
-						'latest_message_time': latest_message_time,
-						'participants': other_users_data  # <-- updated field: array of users
-					})
+				# Append conversation data
+				data.append({
+					'conversation_user_ids': cu.user_ids,
+					'conversation_id': conversation.id,
+					'is_group': cu.is_group,
+					'title': conversation.title,
+					'latest_message_id': latest_message.id if latest_message else None,
+					'latest_message_body': message,
+					'latest_message_time': latest_message_time,
+					'participants': other_users_data 
+				})
 
 			# Sort the data by latest_message_time descending (latest first)
-			data_sorted = sorted(
+			data = sorted(
 				data,
 				key=lambda x: x['latest_message_time'] or max_dt,
 				reverse=True
@@ -262,7 +259,7 @@ class getAllConversationsAPI(APIView):
 			return Response({
 				'success': True,
 				'message': 'Conversations fetched',
-				'data': data_sorted
+				'data': data
 			}, status=status.HTTP_200_OK)
 
 		except Exception as e:

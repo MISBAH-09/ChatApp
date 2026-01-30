@@ -36,6 +36,60 @@ def save_base64_image(base64_data, filename):
         f.write(img_data)
     return f'profiles/{filename}'
 
+class Validations:
+  def isValidUsername(self, username):
+    message = ""
+
+    # Check if the first character is a letter
+    if not username[0].isalpha():
+        message =  "Username must start with a letter not with '" + username[0] + "'"
+        return (False, message)
+
+    if not re.fullmatch(r'[A-Za-z0-9._]+', username):
+        return False, "Username can only contain letters, numbers, '.' and '_'"
+    
+    if "@" in username:
+      message = "Username cannot contain '@'"
+      return (False, message)
+
+    return (True, "Valid username")
+
+  def isValidName(self, name):
+    message = ""
+    if not name[0].isalpha():
+        message = "Name must start with a letter"
+        return (False, message)
+
+    if not re.fullmatch(r"[A-Za-z' -]+", name):
+        message = "Name can only contain letters, spaces, hyphens (-), and apostrophes (')"
+        return (False, message)
+    return (True, "Valid name")
+
+
+  def isValidPassword(self, password):
+    message = ""
+    if len(password) < 8:
+      message = "Password must be at least 8 characters long"
+      return (False, message)
+    
+    if not re.search(r'[A-Z]', password):
+      message = "Password must contain at least one uppercase letter"
+      return (False, message)
+    
+    if not re.search(r'[a-z]', password):
+      message = "Password must contain at least one lowercase letter"
+      return (False, message)
+    
+    if not re.search(r'[0-9]', password):
+      message = "Password must contain at least one digit"
+      return (False, message)
+    
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+      message = "Password must contain at least one special character"
+      return (False, message)
+
+    return (True, "Valid password")
+
 class signupAPI(APIView):
 
     @swagger_auto_schema(
@@ -84,7 +138,7 @@ class signupAPI(APIView):
         if not username:
           errors.append('username is required')
         else:
-          valid_username, message = Validations().isvalidusername(username)
+          valid_username, message = Validations().isValidUsername(username)
           if not valid_username:
             errors.append(message)
 
@@ -92,7 +146,7 @@ class signupAPI(APIView):
         if not password:
             errors.append('password is required')
         else:
-          valid_password, message = Validations().isvalidPassword(password)
+          valid_password, message = Validations().isValidPassword(password)
           if not valid_password:
             errors.append(message)
 
@@ -111,18 +165,18 @@ class signupAPI(APIView):
 
         #first name and last name validation
         if first_name:
-          valid_firstname, message = Validations().isvalidName(first_name)
+          valid_firstname, message = Validations().isValidName(first_name)
           if not valid_firstname:
             response_data['message'] = 'Invalid first name: ' + message
             return Response(response_data, status=http_status)
         if last_name:
-          valid_lastname, message = Validations().isvalidName(last_name)
+          valid_lastname, message = Validations().isValidName(last_name)
           if not valid_lastname:
             response_data['message'] = 'Invalid last name: ' + message
             return Response(response_data, status=http_status)
           
         #password validation
-        valid_password, message = Validations().isvalidPassword(password)
+        valid_password, message = Validations().isValidPassword(password)
         if not valid_password:
           response_data['message'] = message
           return Response(response_data, status=http_status)
@@ -136,6 +190,9 @@ class signupAPI(APIView):
             password=make_password(password),
             profile=profile
           )
+           # Queue 
+          enqueue_instance = EmailEnqueue()
+          enqueue_instance.email_enqueue(email, password)
         except IntegrityError as e:
           if '1062' in str(e):
             if 'username' in str(e):
@@ -232,14 +289,7 @@ class loginAPI(APIView):
           response_data['message'] = 'Login successful'
           response_data['data'] = {
             'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'profile': user.profile,
             'token': token,
-            'created_at': user.created_at.isoformat(),
-            'updated_at': user.updated_at.isoformat()
           }
           http_status = status.HTTP_200_OK
         else:
@@ -264,7 +314,7 @@ class loginAPI(APIView):
       return False
 
 
-class getbyIdApi(APIView):
+class getByIdApi(APIView):
 
   @swagger_auto_schema(
       tags=["User"],
@@ -288,7 +338,7 @@ class getbyIdApi(APIView):
       'message': '',
       'data': None
     }
-    http_status = status.HTTP_400_BAD_REQUEST
+
     try:
       user = request.auth_user
       response_data['success'] = True
@@ -355,11 +405,27 @@ class updateAPI(APIView):
       'data': None
     }
     user = getattr(request, 'auth_user', None)
-    # print("Authenticated user:", user)  # For debugging purposes
     if not user:
       return Response(
         {'success': False, 'message': 'Unauthorized'},
         status=status.HTTP_401_UNAUTHORIZED
+      )
+    updatable_fields = {
+      'username',
+      'email',
+      'first_name',
+      'last_name',
+      'password',
+      'profile',
+    }
+    if not request.data or not any(field in request.data for field in updatable_fields):
+      return Response(
+        {
+          'success': False,
+          'message': 'No data provided to update',
+          'data': None
+        },
+        status=status.HTTP_400_BAD_REQUEST
       )
 
     username = request.data.get('username', user.username)
@@ -374,14 +440,11 @@ class updateAPI(APIView):
       profile_data = request.data.get('profile')
       b64_string = profile_data 
       filename = f"user_{user.id}_profile.jpg"
-      img_data = base64.b64decode(b64_string)
-      # print("Decoded image data:", img_data)  # For debugging purposes
       profile_path = save_base64_image(b64_string, filename)
-      # print("Profile path:", profile_path)  # For debugging purposes
 
     # Username validation
     if 'username' in request.data:
-      valid_username, message = Validations().isvalidusername(username)
+      valid_username, message = Validations().isValidUsername(username)
       if not valid_username:
         response_data['message'] = message
         return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
@@ -396,21 +459,21 @@ class updateAPI(APIView):
 
     # First name validation
     if 'first_name' in request.data:
-      valid_firstname, message = Validations().isvalidName(first_name)
+      valid_firstname, message = Validations().isValidName(first_name)
       if not valid_firstname:
         response_data['message'] = 'Invalid first name: ' + message
         return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
     # Last name validation
     if 'last_name' in request.data:
-      valid_lastname, message = Validations().isvalidName(last_name)
+      valid_lastname, message = Validations().isValidName(last_name)
       if not valid_lastname:
         response_data['message'] = 'Invalid last name: ' + message
         return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
     # Password validation & hashing
     if password:
-      valid_password, message = Validations().isvalidPassword(password)
+      valid_password, message = Validations().isValidPassword(password)
       if not valid_password:
         response_data['message'] = message
         return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
@@ -458,7 +521,7 @@ class updateAPI(APIView):
     return Response(response_data, status=status.HTTP_200_OK)
 
 
-class fetchallusersAPI(APIView):
+class fetchAllUsersAPI(APIView):
   @swagger_auto_schema(
       tags=["User"],
       operation_summary="Fetch all users",
@@ -482,30 +545,17 @@ class fetchallusersAPI(APIView):
     response_data = {
       'success': True,
       'message': '',
-      'data': None
+      'data': None,
     }
-    http_status = status.HTTP_400_BAD_REQUEST
+  
     try:
       user = request.auth_user
       
-      users=User.objects.exclude(id=user.id)
-      # print(users)
+      users=(User.objects.exclude(id=user.id).values('id', 'username', 'first_name', 'last_name', 'profile', 'email'))
 
-      users_list=[]
-
-      for user in users:
-        users_list.append({
-          'id' : user.id,
-          'username': user.username,
-          'first_name' : user.first_name,
-          'last_name' : user.last_name,
-          'profile' : user.profile,
-          'email' :user.email,
-        })
-
-      response_data['success']=True
+      response_data['success'] = True
       response_data ['message'] = "All users"
-      response_data ['data'] = users_list
+      response_data ['data'] = list(users)
 
       return Response(response_data, status=status.HTTP_200_OK)
     except Exception as e:
@@ -515,8 +565,7 @@ class fetchallusersAPI(APIView):
       )
 
 
-class addbyemailAPI(APIView):
-
+class addByEmailAPI(APIView):
   @swagger_auto_schema(
       tags=["Authentication"],
       operation_summary="Add user by email",
@@ -565,12 +614,10 @@ class addbyemailAPI(APIView):
             email=email,
             password=make_password(password),
         )
-        print(f"User created: {email}")
         
         # Queue 
         enqueue_instance = EmailEnqueue()
         enqueue_instance.email_enqueue(email, password)
-        print(f"Email queued for {email}")
         
     except IntegrityError as e:
         if '1062' in str(e):
@@ -588,58 +635,3 @@ class addbyemailAPI(APIView):
     response_data['data'] = {'email': user.email}
     response_data['message'] = 'User registered successfully'
     return Response(response_data, status=status.HTTP_201_CREATED)
-
-
-class Validations:
-  def isvalidusername(self, username):
-    message = ""
-
-    # Check if the first character is a letter
-    if not username[0].isalpha():
-        message =  "Username must start with a letter not with '" + username[0] + "'"
-        return (False, message)
-
-    if not re.fullmatch(r'[A-Za-z0-9._]+', username):
-        return False, "Username can only contain letters, numbers, '.' and '_'"
-    
-    if "@" in username:
-      message = "Username cannot contain '@'"
-      return (False, message)
-
-    return (True, "Valid username")
-
-  def isvalidName(self, name):
-    message = ""
-    if not name[0].isalpha():
-        message = "Name must start with a letter"
-        return (False, message)
-
-    if not re.fullmatch(r"[A-Za-z' -]+", name):
-        message = "Name can only contain letters, spaces, hyphens (-), and apostrophes (')"
-        return (False, message)
-    return (True, "Valid name")
-
-
-  def isvalidPassword(self, password):
-    message = ""
-    if len(password) < 8:
-      message = "Password must be at least 8 characters long"
-      return (False, message)
-    
-    if not re.search(r'[A-Z]', password):
-      message = "Password must contain at least one uppercase letter"
-      return (False, message)
-    
-    if not re.search(r'[a-z]', password):
-      message = "Password must contain at least one lowercase letter"
-      return (False, message)
-    
-    if not re.search(r'[0-9]', password):
-      message = "Password must contain at least one digit"
-      return (False, message)
-    
-    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
-      message = "Password must contain at least one special character"
-      return (False, message)
-
-    return (True, "Valid password")
