@@ -13,9 +13,10 @@ import hashlib
 import base64
 import os
 import re
+import time
 from django.core.files import File
 from ChatApp.EmailEnqueue import EmailEnqueue
-import os
+
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -439,7 +440,7 @@ class updateAPI(APIView):
     if 'profile' in request.data:
       profile_data = request.data.get('profile')
       b64_string = profile_data 
-      filename = f"user_{user.id}_profile.jpg"
+      filename = f"user_{user.id}_profile_{int(time.time())}.jpg"
       profile_path = save_base64_image(b64_string, filename)
 
     # Username validation
