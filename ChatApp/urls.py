@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from .views import loginAPI, signupAPI, getByIdApi, updateAPI, fetchAllUsersAPI,addByEmailAPI, getConversationAPI, getAllConversationsAPI ,sendMessageAPI , getConversationMessages ,deleteMessageAPI ,updateMessageAPI
+from .views import loginAPI, signupAPI, getByIdApi, updateAPI, fetchAllUsersAPI,addByEmailAPI, getConversationAPI, getAllConversationsAPI ,sendMessageAPI , getConversationMessages ,deleteMessageAPI , updateMessageAPI ,getAIConversationAPI ,sendAIMessageAPI
 
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
@@ -49,6 +49,9 @@ urlpatterns = [
     path('deleteMessage/', deleteMessageAPI.as_view()), 
     path('updateMessage/', updateMessageAPI.as_view()),
     path('getConversationMessages/', getConversationMessages.as_view()),
+
+    path('getAIConversation/',getAIConversationAPI.as_view()),
+    path('sendAIMessage/',sendAIMessageAPI.as_view()),
 
     # apis we are not using shift to sockets
     path('sendMessage/', sendMessageAPI.as_view()),
