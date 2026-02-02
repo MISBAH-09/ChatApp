@@ -41,3 +41,18 @@ class Conversations_Users(models.Model):
     user_ids = models.TextField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class AI_Conversations(models.Model):
+    id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)  # one-to-one conversation per user
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+class AI_Messages(models.Model):
+    id = models.AutoField(primary_key=True)
+    convo = models.ForeignKey(AI_Conversations, on_delete=models.CASCADE, related_name="messages")
+    message = models.TextField()
+    sender_is_user = models.BooleanField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
