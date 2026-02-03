@@ -211,6 +211,7 @@ class GlobalConsumer(AsyncWebsocketConsumer):
                     "type": message.type,
                     "body": message.body,
                     "is_edited": message.is_edited,
+                    "title" : conversation.title,
                     "status": message.status,
                     "media_url": message.media_url if message.media_url else None,
                     "conversation_id": conversation_id,
