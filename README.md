@@ -13,6 +13,8 @@ ChatApp is a real-time messaging application built with Django and Django Channe
 -   **User Profiles**: Users can update their profile information, including their username, name, and profile picture.
 -   **Presence System**: Track which users are currently online and broadcast their status.
 -   **Asynchronous Email Notifications**: New users added via email receive a welcome message with their credentials. Emails are managed through a persistent queue and sent by a background cron job.
+-   **AI Chat Support**: Start and send messages in AI conversations via dedicated API endpoints.
+-   **Swagger Docs**: Interactive API documentation powered by Swagger UI and ReDoc.
 
 ## Tech Stack
 
@@ -25,21 +27,21 @@ ChatApp is a real-time messaging application built with Django and Django Channe
 ## Project Structure
 
 ```
-├── ChatApp/          # Main Django project
-│   ├── views/        # API view logic (users, conversations, messages)
-│   ├── middleware/   # Custom authentication middleware
-│   ├── models.py     # Core database models
-│   ├── settings.py   # Project settings
-│   ├── urls.py       # API URL routing
-│   ├── cron.py       # Cron job for sending emails
+├── ChatApp/            # Main Django project
+│   ├── views/          # API view logic (users, conversations, messages)
+│   ├── middleware/     # Custom authentication middleware
+│   ├── models.py       # Core database models
+│   ├── settings.py     # Project settings
+│   ├── urls.py         # API URL routing (includes Swagger)
+│   ├── cron.py         # Cron job for sending emails
 │   └── EmailEnqueue.py # Email queue management class
 │
-├── chats/            # Django app for WebSocket handling
-│   ├── consumers.py  # WebSocket consumer logic
-│   ├── routing.py    # WebSocket URL routing
-│   └── middleware.py # WebSocket authentication middleware
+├── chats/              # Django app for WebSocket handling
+│   ├── consumers.py    # WebSocket consumer logic
+│   ├── routing.py      # WebSocket URL routing
+│   └── middleware.py   # WebSocket authentication middleware
 │
-└── media/            # User-uploaded content
+└── media/              # User-uploaded content
     ├── ImgMessages/
     ├── AudioMessages/
     └── profiles/
@@ -81,6 +83,7 @@ mysqlclient
 django-cors-headers
 python-decouple
 django-crontab
+drf-yasg
 ```
 
 ```bash
@@ -103,8 +106,12 @@ DB_PORT=3306
 EMAIL_QUEUE_PATH=D:/path/to/your/project/ChatApp/ChatApp/email_queue.pkl
 EMAIL_SENDER=your-email@gmail.com
 EMAIL_APP_PASSWORD=your-gmail-app-password
+COMET_API_KEY=your-chatbot-apikey
+COMET_API_URL=your-chat-bot-api-url
+COMET_MODEL=your-chatbot-model
 ```
 *Note: Make sure to update `EMAIL_QUEUE_PATH` to the absolute path on your system.*
+
 
 **5. Set up the Database**
 
@@ -158,6 +165,22 @@ All protected endpoints require an `Authorization: Bearer <token>` header.
 | `POST` | `/getConversationMessages/`| Get all messages for a specific conversation.       | Required       |
 | `POST` | `/deleteMessage/`         | Delete a message sent by the user.                  | Required       |
 | `PUT`  | `/updateMessage/`         | Update the body of a text message sent by the user. | Required       |
+| `POST` | `/sendMessage/`            | Send a message to a conversation. *(Legacy HTTP; prefer WebSockets)* | Required |
+
+### AI Chat
+
+| Method | Endpoint               | Description                                           | Authentication |
+| :----- | :--------------------- | :---------------------------------------------------- | :------------- |
+| `POST` | `/getAIConversation/`  | Get or create an AI conversation for the user.        | Required       |
+| `POST` | `/sendAIMessage/`      | Send a message in an AI conversation.                 | Required       |
+
+## Swagger Documentation
+
+Interactive docs and schemas are available when the server is running:
+
+-   **Swagger UI**: `/swagger/`
+-   **ReDoc**: `/redoc/`
+-   **OpenAPI Schema**: `/swagger.json` or `/swagger.yaml`
 
 
 ## WebSocket API
